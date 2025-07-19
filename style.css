@@ -1,0 +1,93 @@
+
+body {
+  font-family: 'Segoe UI', sans-serif;
+  margin: 0;
+  padding: 0;
+  background: url('https://i.imgur.com/lpba0Rm.jpg') repeat; /* verde feltro */
+  color: #fff;
+}
+
+#container {
+  max-width: 700px;
+  margin: 2rem auto;
+  background: linear-gradient(135deg, #3e3e3e, #2c2c2c);
+  border: 8px solid #8B4513; /* madeira */
+  border-radius: 12px;
+  box-shadow: 0 0 30px rgba(0, 0, 0, 0.8);
+  padding: 2rem;
+}
+
+h1, h2, h3 {
+  color: #FFD700; /* dourado */
+}
+
+button {
+  background-color: #FFD700;
+  color: #000;
+  border: none;
+  border-radius: 8px;
+  padding: 0.6rem 1.2rem;
+  font-weight: bold;
+  cursor: pointer;
+  margin-top: 1rem;
+}
+
+button:hover {
+  background-color: #e6c200;
+}
+
+input[type="text"] {
+  width: 100%;
+  padding: 0.5rem;
+  border-radius: 5px;
+  border: none;
+  margin-top: 1rem;
+}
+
+#card {
+  background-color: rgba(0, 100, 0, 0.9);
+  padding: 1rem;
+  border-radius: 8px;
+}
+
+#taboo-list li {
+  color: #ff6961;
+  margin: 0.3rem 0;
+}
+
+#turnInstructions {
+  background-color: #fff;
+  color: #000;
+  padding: 1rem;
+  margin-top: 1rem;
+  border-radius: 10px;
+}
+
+#turnInstructions ul {
+  padding-left: 1.2rem;
+}
+
+#guessArea {
+  margin-top: 2rem;
+}
+
+#guesses {
+  margin-top: 1rem;
+  font-weight: bold;
+}
+
+#analiseDenunciaArea {
+  background-color: #222;
+  padding: 1rem;
+  border-radius: 10px;
+  margin-top: 2rem;
+}
+
+#pontosArea {
+  margin-top: 2rem;
+}
+
+#pontosLista {
+  list-style-type: none;
+  padding: 0;
+}

@@ -1,0 +1,166 @@
+
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <title>Taboo YDMD</title>
+  <style>
+    body {
+      font-family: sans-serif;
+      background: url('https://i.imgur.com/FKxaOmk.jpg');
+      color: #fff;
+      margin: 0;
+      padding: 2rem;
+    }
+    #container {
+      max-width: 600px;
+      margin: auto;
+      background: rgba(0, 100, 0, 0.85);
+      padding: 2rem;
+      border-radius: 15px;
+      box-shadow: 0 0 20px rgba(0,0,0,0.5);
+    }
+    h1, h2, h3 {
+      color: #ffd700;
+    }
+    #card, #guessArea, #turnInstructions, #gameArea, #startButton, #analiseDenunciaArea {
+      display: none;
+      margin-top: 2rem;
+    }
+    .taboo {
+      color: #ff6961;
+    }
+    #controls {
+      margin-top: 1.5rem;
+    }
+    button {
+      padding: 0.5rem 1rem;
+      font-size: 1rem;
+      background-color: #ffd700;
+      border: none;
+      border-radius: 5px;
+      cursor: pointer;
+      margin-right: 0.5rem;
+    }
+    input[type="text"] {
+      padding: 0.5rem;
+      width: 100%;
+      margin-top: 1rem;
+      border: none;
+      border-radius: 5px;
+    }
+    #guesses {
+      margin-top: 1rem;
+      color: #fff;
+    }
+    #denunciaStatus {
+      margin-top: 1rem;
+      font-size: 0.9rem;
+      color: #ffcccb;
+    }
+    #turnInstructions {
+      background-color: #fff;
+      color: #000;
+      padding: 1rem;
+      border-radius: 10px;
+    }
+    #turnInstructions h3 {
+      margin-bottom: 0.5rem;
+    }
+    #turnInstructions ul {
+      padding-left: 1.2rem;
+    }
+    #pontosArea {
+      margin-top: 2rem;
+    }
+    #pontosArea h3 {
+      color: #ffd700;
+    }
+    #pontosLista {
+      list-style-type: none;
+      padding-left: 0;
+    }
+    #pontosLista li {
+      margin-bottom: 0.5rem;
+    }
+    #analiseDenunciaArea {
+      background-color: #222;
+      padding: 1rem;
+      border-radius: 10px;
+    }
+    .cartaRevisada {
+      margin-bottom: 1rem;
+    }
+    .tabooBtn {
+      margin: 0.25rem;
+      padding: 0.25rem 0.5rem;
+      background-color: #ff6961;
+      color: #fff;
+      border: none;
+      border-radius: 5px;
+      cursor: pointer;
+    }
+    .wordTarget {
+      background-color: #ffa500;
+    }
+  </style>
+</head>
+<body>
+  <div id="container">
+    <h1>🎯 Taboo YDMD</h1>
+    <div id="loginArea">
+      <input type="text" id="nomeJogador" placeholder="Digite seu nome para entrar" />
+      <button onclick="entrarNaSala()">Entrar</button>
+    </div>
+
+    <div id="salaEspera">
+      <h2>Sala de Espera</h2>
+      <ul id="listaJogadores"></ul>
+      <button id="startButton" onclick="iniciarJogo()">Iniciar Jogo</button>
+    </div>
+
+    <div id="gameArea">
+      <div id="status"></div>
+
+      <div id="card">
+        <h2>Palavra: <span id="word"></span></h2>
+        <h3>Palavras Tabu:</h3>
+        <ul id="taboo-list"></ul>
+        <div id="controls">
+          <button onclick="nextCard()">Próxima Carta</button>
+        </div>
+      </div>
+
+      <div id="turnInstructions">
+        <h3>🎯 É sua vez de dar dicas!</h3>
+        <p>Use descrições verbais criativas para fazer seus colegas adivinharem a palavra.</p>
+        <p style="color: orange; font-weight: bold;">Lembre-se: não fale as palavras proibidas!</p>
+        <h4>⚠️ Regras para as Pistas</h4>
+        <ul>
+          <li>❌ Não diga nenhuma palavra da lista tabu.</li>
+          <li>❌ Não use gestos ou sons.</li>
+          <li>❌ Não use formas derivadas da palavra (plural, diminutivo, conjugação, etc.).</li>
+          <li>❌ Não diga “rima com”, “começa com”, ou letras isoladas.</li>
+          <li>❌ Não soletre a palavra.</li>
+        </ul>
+      </div>
+
+      <div id="guessArea">
+        <input type="text" id="guessInput" placeholder="Digite seu palpite e pressione Enter..." />
+        <div id="guesses"></div>
+        <div id="denunciaStatus"></div>
+      </div>
+
+      <div id="analiseDenunciaArea">
+        <h3>🔍 Revisão das Cartas Usadas</h3>
+        <div id="cartasRevisadas"></div>
+      </div>
+
+      <div id="pontosArea">
+        <h3>🏆 Pontuação</h3>
+        <ul id="pontosLista"></ul>
+      </div>
+    </div>
+  </div>
+</body>
+</html>
