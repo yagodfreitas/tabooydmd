@@ -1,35 +1,34 @@
-const express = require("express");
-const http = require("http");
-const path = require("path");
-const { Server } = require("socket.io");
-
+const express = require('express');
 const app = express();
-const server = http.createServer(app);
-const io = new Server(server);
+const http = require('http').createServer(app);
+const io = require('socket.io')(http);
 
-// Servir arquivos estáticos (como index.html, script.js e style.css)
-app.use(express.static(path.join(__dirname)));
-
-// Rota principal para carregar o HTML
-app.get("/", (req, res) => {
-  res.sendFile(path.join(__dirname, "index.html"));
-});
-
-// Socket.IO
-io.on("connection", (socket) => {
-  console.log("Novo jogador conectado");
-
-  socket.on("mensagem", (msg) => {
-    io.emit("mensagem", msg);
-  });
-
-  socket.on("disconnect", () => {
-    console.log("Jogador desconectado");
-  });
-});
-
-// Usar a porta fornecida pelo Render (ou 3000 localmente)
+// Porta dinâmica para o Render
 const PORT = process.env.PORT || 3000;
-server.listen(PORT, () => {
+
+// Servir arquivos estáticos da pasta atual
+app.use(express.static(__dirname));
+
+// Rota principal
+app.get('/', (req, res) => {
+  res.sendFile(__dirname + '/index.html');
+});
+
+// Lógica de socket
+io.on('connection', (socket) => {
+  console.log('Um jogador conectou: ' + socket.id);
+
+  socket.on('mensagem', (data) => {
+    console.log('Mensagem recebida:', data);
+    io.emit('mensagem', data); // broadcast
+  });
+
+  socket.on('disconnect', () => {
+    console.log('Jogador desconectado: ' + socket.id);
+  });
+});
+
+// Inicialização do servidor
+http.listen(PORT, () => {
   console.log(`Servidor rodando na porta ${PORT}`);
 });

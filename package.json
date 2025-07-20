@@ -1,6 +1,7 @@
 {
   "name": "tabooydmd",
   "version": "1.0.0",
+  "description": "Jogo Taboo YDMD Multiplayer com Socket.IO",
   "main": "server.js",
   "scripts": {
     "start": "node server.js"
