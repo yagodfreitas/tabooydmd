@@ -1,0 +1,17 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <title>Taboo YDMD - Jogo</title>
+</head>
+<body>
+  <h1>Bem-vindo ao jogo, <span id="playerName"></span>!</h1>
+
+  <script>
+    // Captura o nome da URL
+    const urlParams = new URLSearchParams(window.location.search);
+    const name = urlParams.get('username') || 'Visitante';
+    document.getElementById('playerName').textContent = decodeURIComponent(name);
+  </script>
+</body>
+</html>
