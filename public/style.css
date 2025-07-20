@@ -1,9 +1,9 @@
-
 body {
   font-family: 'Segoe UI', sans-serif;
   margin: 0;
   padding: 0;
-  background: url('https://i.imgur.com/lpba0Rm.jpg') repeat; /* verde feltro */
+  background: url('https://images.unsplash.com/photo-1611605698335-4593e14f2c64?auto=format&fit=crop&w=1920&q=80') no-repeat center center fixed;
+background-size: cover;
   color: #fff;
 }
 
