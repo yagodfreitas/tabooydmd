@@ -1,29 +1,16 @@
-const express = require('express');
-const app = express();
-const http = require('http').createServer(app);
-const io = require('socket.io')(http);
+const express = require("express");
+const path = require("path");
 
+const app = express();
 const PORT = process.env.PORT || 3000;
 
-app.use(express.static(__dirname));
+// Serve os arquivos estáticos da pasta 'public'
+app.use(express.static(path.join(__dirname, "public")));
 
-app.get('/', (req, res) => {
-  res.sendFile(__dirname + '/index.html');
+app.get("/", (req, res) => {
+  res.sendFile(path.join(__dirname, "public", "index.html"));
 });
 
-io.on('connection', (socket) => {
-  console.log('Um jogador conectou: ' + socket.id);
-
-  socket.on('mensagem', (data) => {
-    console.log('Mensagem recebida:', data);
-    io.emit('mensagem', data);
-  });
-
-  socket.on('disconnect', () => {
-    console.log('Jogador desconectado: ' + socket.id);
-  });
-});
-
-http.listen(PORT, () => {
+app.listen(PORT, () => {
   console.log(`Servidor rodando na porta ${PORT}`);
 });
