@@ -1,65 +1,35 @@
-const express = require('express');
-const http = require('http');
-const { Server } = require('socket.io');
-const path = require('path');
+const express = require("express");
+const http = require("http");
+const path = require("path");
+const { Server } = require("socket.io");
 
 const app = express();
 const server = http.createServer(app);
 const io = new Server(server);
 
-const PORT = process.env.PORT || 3000;
+// Servir arquivos estáticos da pasta atual
+app.use(express.static(path.join(__dirname)));
 
-app.use(express.static(path.join(__dirname, 'public')));
+// Rota principal serve o index.html
+app.get("/", (req, res) => {
+  res.sendFile(path.join(__dirname, "index.html"));
+});
 
-let jogadores = [];
-let rodadaAtual = 1;
-let indexJogadorDaVez = 0;
+// Evento básico do socket (exemplo)
+io.on("connection", (socket) => {
+  console.log("Novo usuário conectado");
 
-io.on('connection', (socket) => {
-  console.log('Novo jogador conectado:', socket.id);
-
-  socket.on('registrarJogador', (nome) => {
-    jogadores.push({ id: socket.id, nome, pontos: 0 });
-    io.emit('atualizarJogadores', jogadores);
+  socket.on("mensagem", (msg) => {
+    io.emit("mensagem", msg); // retransmite a mensagem para todos
   });
 
-  socket.on('iniciarJogo', () => {
-    if (jogadores.length > 1) {
-      io.emit('jogoIniciado');
-      enviarProximaRodada();
-    }
-  });
-
-  function enviarProximaRodada() {
-    const jogadorDaVez = jogadores[indexJogadorDaVez];
-    io.emit('novaRodada', {
-      jogadorId: jogadorDaVez.id,
-      nome: jogadorDaVez.nome,
-      rodada: rodadaAtual
-    });
-  }
-
-  socket.on('palpiteCorreto', (jogadorId) => {
-    const jogador = jogadores.find(j => j.id === jogadorId);
-    if (jogador) jogador.pontos += 1;
-    io.emit('atualizarPontuacao', jogadores);
-  });
-
-  socket.on('proximaCarta', () => {
-    indexJogadorDaVez++;
-    if (indexJogadorDaVez >= jogadores.length) {
-      indexJogadorDaVez = 0;
-      rodadaAtual++;
-    }
-    enviarProximaRodada();
-  });
-
-  socket.on('disconnect', () => {
-    jogadores = jogadores.filter(j => j.id !== socket.id);
-    io.emit('atualizarJogadores', jogadores);
+  socket.on("disconnect", () => {
+    console.log("Usuário desconectado");
   });
 });
 
+// Porta dinâmica para o Render
+const PORT = process.env.PORT || 3000;
 server.listen(PORT, () => {
-  console.log(`Servidor rodando em http://localhost:${PORT}`);
+  console.log(`Servidor rodando na porta ${PORT}`);
 });
