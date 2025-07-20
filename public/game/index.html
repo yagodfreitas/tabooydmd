@@ -3,15 +3,25 @@
 <head>
   <meta charset="UTF-8">
   <title>Taboo YDMD - Jogo</title>
+  <link rel="stylesheet" href="../style.css">
 </head>
 <body>
-  <h1>Bem-vindo ao jogo, <span id="playerName"></span>!</h1>
+  <div id="loginArea" style="display: none;"></div>
 
-  <script>
-    // Captura o nome da URL
-    const urlParams = new URLSearchParams(window.location.search);
-    const name = urlParams.get('username') || 'Visitante';
-    document.getElementById('playerName').textContent = decodeURIComponent(name);
-  </script>
+  <div id="salaEspera" style="display: none;">
+    <h2>Jogadores na sala:</h2>
+    <ul id="listaJogadores"></ul>
+    <button onclick="iniciarJogo()">Iniciar Jogo</button>
+  </div>
+
+  <div id="gameArea" style="display: none;">
+    <div id="card">
+      <h3 id="word"></h3>
+      <ul id="taboo-list"></ul>
+      <button onclick="nextCard()">Próxima carta</button>
+    </div>
+  </div>
+
+  <script src="../script.js"></script>
 </body>
 </html>
