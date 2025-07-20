@@ -1,4 +1,3 @@
-
 // script.js
 let jogadores = [];
 let jogadorAtual = 0;
