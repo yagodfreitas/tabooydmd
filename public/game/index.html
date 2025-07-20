@@ -22,6 +22,24 @@
     </div>
   </div>
 
+  <!-- 👇 SCRIPT QUE CAPTURA O NOME E ATUALIZA A TELA -->
+  <script>
+    const urlParams = new URLSearchParams(window.location.search);
+    const name = urlParams.get('name') || 'Visitante';
+    const jogador = { nome: decodeURIComponent(name), pontos: 0 };
+    window.jogadores = [jogador];
+
+    window.addEventListener("DOMContentLoaded", () => {
+      document.getElementById("salaEspera").style.display = "block";
+
+      const lista = document.getElementById("listaJogadores");
+      const li = document.createElement("li");
+      li.textContent = jogador.nome;
+      lista.appendChild(li);
+    });
+  </script>
+
+  <!-- 👇 SCRIPT DO JOGO -->
   <script src="../script.js"></script>
 </body>
 </html>
