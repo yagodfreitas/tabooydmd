@@ -1,14 +1,13 @@
+<!-- public/game/index.html -->
 <!DOCTYPE html>
 <html lang="pt-BR">
 <head>
-  <meta charset="UTF-8">
+  <meta charset="UTF-8" />
   <title>Taboo YDMD - Jogo</title>
-  <link rel="stylesheet" href="../style.css">
+  <link rel="stylesheet" href="../style.css" />
 </head>
 <body>
-  <div id="loginArea" style="display: none;"></div>
-
-  <div id="salaEspera" style="display: none;">
+  <div id="salaEspera">
     <h2>Jogadores na sala:</h2>
     <ul id="listaJogadores"></ul>
     <button onclick="iniciarJogo()">Iniciar Jogo</button>
@@ -22,24 +21,7 @@
     </div>
   </div>
 
-  <!-- 👇 SCRIPT QUE CAPTURA O NOME E ATUALIZA A TELA -->
-  <script>
-    const urlParams = new URLSearchParams(window.location.search);
-    const name = urlParams.get('name') || 'Visitante';
-    const jogador = { nome: decodeURIComponent(name), pontos: 0 };
-    window.jogadores = [jogador];
-
-    window.addEventListener("DOMContentLoaded", () => {
-      document.getElementById("salaEspera").style.display = "block";
-
-      const lista = document.getElementById("listaJogadores");
-      const li = document.createElement("li");
-      li.textContent = jogador.nome;
-      lista.appendChild(li);
-    });
-  </script>
-
-  <!-- 👇 SCRIPT DO JOGO -->
+  <script src="/socket.io/socket.io.js"></script>
   <script src="../script.js"></script>
 </body>
 </html>
