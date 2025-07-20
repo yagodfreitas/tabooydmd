@@ -1,7 +1,6 @@
 {
-  "name": "taboo-ydmd-server",
+  "name": "tabooydmd",
   "version": "1.0.0",
-  "description": "Servidor multiplayer para o jogo Taboo YDMD",
   "main": "server.js",
   "scripts": {
     "start": "node server.js"
