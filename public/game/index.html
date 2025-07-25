@@ -1,27 +1,94 @@
-<!-- public/game/index.html -->
 <!DOCTYPE html>
 <html lang="pt-BR">
 <head>
-  <meta charset="UTF-8" />
-  <title>Taboo YDMD - Jogo</title>
-  <link rel="stylesheet" href="../style.css" />
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Taboo YDMD - Jogo</title>
+    <link rel="stylesheet" href="../style.css" />
 </head>
 <body>
-  <div id="salaEspera">
-    <h2>Jogadores na sala:</h2>
-    <ul id="listaJogadores"></ul>
-    <button onclick="iniciarJogo()">Iniciar Jogo</button>
-  </div>
-
-  <div id="gameArea" style="display: none;">
-    <div id="card">
-      <h3 id="word"></h3>
-      <ul id="taboo-list"></ul>
-      <button onclick="nextCard()">Próxima carta</button>
+    <!-- Notificação Global -->
+    <div id="notification" class="notification">
+        <p id="notification-text"></p>
     </div>
-  </div>
 
-  <script src="/socket.io/socket.io.js"></script>
-  <script src="../script.js"></script>
+    <div id="container" class="container">
+        <!-- TELA DE LOBBY (SALA DE ESPERA) -->
+        <div id="lobby-screen" class="screen active">
+            <h2>Sala de Espera</h2>
+            <p>Aguardando jogadores... O host pode iniciar a partida com no mínimo 3 pessoas.</p>
+            <div id="player-list-container">
+                <h3>Jogadores na sala:</h3>
+                <ul id="player-list"></ul>
+            </div>
+            <button id="start-game-btn" class="hidden">Iniciar Jogo</button>
+        </div>
+
+        <!-- TELA DE JOGO -->
+        <div id="game-screen" class="screen">
+            <div class="game-header">
+                <h2>Rodada <span id="round-number">1</span>/3</h2>
+                <div class="timer-container">
+                    <span id="timer">60</span>
+                </div>
+            </div>
+            <div class="info-bar">
+                Jogador da Vez: <strong id="current-giver-name">Ninguém</strong>
+            </div>
+
+            <div class="game-main">
+                <!-- Coluna Esquerda: Placar -->
+                <div class="game-sidebar">
+                    <h3>Pontuação</h3>
+                    <ul id="scoreboard"></ul>
+                </div>
+
+                <!-- Coluna Central: Ação -->
+                <div class="game-center">
+                    <!-- Visão do Jogador da Vez (Giver) -->
+                    <div id="giver-view" class="hidden">
+                        <div class="card">
+                            <p class="card-instruction">Sua palavra é:</p>
+                            <h3 id="target-word">PALAVRA</h3>
+                            <p class="card-instruction">Palavras Tabu:</p>
+                            <ul id="taboo-list"></ul>
+                        </div>
+                    </div>
+                    <!-- Visão dos Adivinhadores (Guesser) -->
+                    <div id="guesser-view" class="hidden">
+                        <div class="guesser-box">
+                            <h3>Adivinhe a Palavra!</h3>
+                            <p>O jogador <strong id="giver-name-for-guesser"></strong> está dando as dicas.</p>
+                            <form id="guess-form">
+                                <input id="guess-input" type="text" placeholder="Seu palpite..." autocomplete="off" required />
+                                <button type="submit">Enviar</button>
+                            </form>
+                        </div>
+                    </div>
+                     <!-- Botão de Denúncia -->
+                    <button id="report-btn" class="report-button hidden">
+                        🚨 Denunciar (<span id="report-count">0</span>)
+                    </button>
+                </div>
+
+                <!-- Coluna Direita: Palpites -->
+                <div class="game-sidebar">
+                    <h3>Palpites</h3>
+                    <div id="guess-log"></div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- TELA DE PÓDIO (FIM DE JOGO) -->
+        <div id="podium-screen" class="screen">
+            <h2>Fim de Jogo!</h2>
+            <h3>Classificação Final</h3>
+            <ul id="podium-list"></ul>
+            <button id="play-again-btn" class="hidden">Jogar Novamente</button>
+        </div>
+    </div>
+
+    <script src="/socket.io/socket.io.js"></script>
+    <script src="../script.js"></script>
 </body>
 </html>
