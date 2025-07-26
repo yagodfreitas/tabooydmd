@@ -10,7 +10,6 @@ const io = new socketIo.Server(server);
 
 const PORT = process.env.PORT || 3000;
 
-// Serve os arquivos estáticos da pasta "public"
 app.use(express.static(path.join(__dirname, 'public')));
 
 // --- ESTADO DO JOGO (GAME STATE) ---
@@ -19,14 +18,24 @@ let gameState = {
     playerOrder: [],
     cards: [],
     usedCards: new Set(),
+    
     gameStarted: false,
     currentTurnIndex: 0,
     currentRound: 1,
     maxRounds: 3,
+
     turnTimer: null,
+    reviewTimer: null,
     timeLeft: 60,
+    
     currentCard: null,
     currentGiverId: null,
+    
+    // --- NOVAS VARIÁVEIS DE ESTADO PARA AVALIAÇÃO ---
+    turnSuccesses: [], // Armazena as cartas acertadas no turno atual [{ card, guesserId, giverId }]
+    currentReviewCard: null, // A carta sendo avaliada no momento
+    reviewReports: new Set(), // Quem denunciou na fase de avaliação
+    
     liveReports: new Set(),
     wordGuessedInTurn: false,
 };
@@ -54,6 +63,7 @@ function shuffleArray(array) {
 function resetGame() {
     console.log("Reiniciando o jogo...");
     if (gameState.turnTimer) clearInterval(gameState.turnTimer);
+    if (gameState.reviewTimer) clearTimeout(gameState.reviewTimer);
     
     Object.values(gameState.players).forEach(p => p.score = 0);
     
@@ -66,6 +76,8 @@ function resetGame() {
     gameState.currentCard = null;
     gameState.currentGiverId = null;
     gameState.liveReports.clear();
+    gameState.turnSuccesses = [];
+    gameState.currentReviewCard = null;
     
     io.emit('gameReset');
     io.emit('lobbyUpdate', Object.values(gameState.players));
@@ -85,9 +97,16 @@ function startGame(socket) {
     startNewTurn();
 }
 
+function moveToNextTurn() {
+    gameState.currentTurnIndex++;
+    startNewTurn();
+}
+
 function startNewTurn() {
     if (gameState.turnTimer) clearInterval(gameState.turnTimer);
     
+    gameState.turnSuccesses = []; // Limpa os acertos do turno anterior
+
     if (gameState.currentTurnIndex >= gameState.playerOrder.length) {
         gameState.currentTurnIndex = 0;
         gameState.currentRound++;
@@ -102,9 +121,8 @@ function startNewTurn() {
     const giver = gameState.players[gameState.currentGiverId];
     
     if (!giver) {
-        console.log(`Jogador da vez ${gameState.currentGiverId} desconectou. Pulando turno.`);
-        gameState.currentTurnIndex++;
-        startNewTurn();
+        console.log(`Jogador da vez ${gameState.currentGiverId} desconectou. Pulando.`);
+        moveToNextTurn();
         return;
     }
 
@@ -137,7 +155,6 @@ function pickNewCard() {
         gameState.currentCard = null;
         return;
     }
-
     let newCardIndex;
     do {
         newCardIndex = Math.floor(Math.random() * gameState.cards.length);
@@ -161,14 +178,94 @@ function updateTimer() {
     if (gameState.timeLeft <= 0) {
         clearInterval(gameState.turnTimer);
         console.log(`Tempo esgotado para ${gameState.players[gameState.currentGiverId]?.name}.`);
-        gameState.currentTurnIndex++;
-        startNewTurn();
+        startReviewPhase(); // <<-- MUDANÇA PRINCIPAL: Inicia a avaliação em vez do próximo turno
     }
 }
+
+// --- LÓGICA DA FASE DE AVALIAÇÃO ---
+
+function startReviewPhase() {
+    console.log("Iniciando fase de avaliação...");
+    if (gameState.turnSuccesses.length === 0) {
+        console.log("Nenhuma carta para avaliar. Pulando para o próximo turno.");
+        moveToNextTurn();
+        return;
+    }
+    
+    io.emit('startReview', { totalCards: gameState.turnSuccesses.length });
+    // Pequeno delay para o jogador ver a transição
+    setTimeout(reviewNextCard, 2000);
+}
+
+function reviewNextCard() {
+    if (gameState.reviewTimer) clearTimeout(gameState.reviewTimer);
+
+    if (gameState.turnSuccesses.length === 0) {
+        endReviewPhase();
+        return;
+    }
+
+    gameState.currentReviewCard = gameState.turnSuccesses.shift();
+    gameState.reviewReports.clear();
+
+    console.log(`Avaliando a carta: ${gameState.currentReviewCard.card.palavraAlvo}`);
+
+    io.emit('showReviewCard', {
+        card: gameState.currentReviewCard.card,
+        guesserName: gameState.players[gameState.currentReviewCard.guesserId]?.name || '?'
+    });
+
+    // Inicia um timer de 5 segundos para a avaliação
+    gameState.reviewTimer = setTimeout(() => {
+        processReviewVotes();
+    }, 5000);
+}
+
+function processReviewVotes() {
+    const giverId = gameState.currentReviewCard.giverId;
+    const giver = gameState.players[giverId];
+    
+    // O número de votantes é todos os jogadores menos o que deu a dica
+    const totalVoters = Math.max(1, Object.keys(gameState.players).length - 1);
+    const requiredReports = Math.ceil((totalVoters + 1) / 2); // Maioria simples
+
+    let invalidated = false;
+    if (giver && gameState.reviewReports.size >= requiredReports) {
+        console.log(`Carta "${gameState.currentReviewCard.card.palavraAlvo}" invalidada na avaliação.`);
+        giver.score -= 1; // Remove o ponto do jogador que deu a dica
+        invalidated = true;
+    } else {
+        console.log(`Carta "${gameState.currentReviewCard.card.palavraAlvo}" validada.`);
+    }
+
+    io.emit('reviewResult', {
+        word: gameState.currentReviewCard.card.palavraAlvo,
+        invalidated: invalidated,
+        reports: gameState.reviewReports.size,
+        required: requiredReports
+    });
+    
+    if (invalidated) {
+        io.emit('scoreUpdate', Object.values(gameState.players));
+    }
+
+    // Passa para a próxima carta a ser avaliada
+    setTimeout(reviewNextCard, 2500); // Delay para ler o resultado
+}
+
+function endReviewPhase() {
+    console.log("Fase de avaliação finalizada.");
+    io.emit('endReview');
+    gameState.currentReviewCard = null;
+    // Delay antes de ir para o próximo turno
+    setTimeout(moveToNextTurn, 2000);
+}
+
 
 function endGame() {
     console.log("Fim de jogo!");
     if (gameState.turnTimer) clearInterval(gameState.turnTimer);
+    if (gameState.reviewTimer) clearTimeout(gameState.reviewTimer);
     
     const scores = Object.values(gameState.players)
         .sort((a, b) => b.score - a.score)
@@ -180,8 +277,7 @@ function endGame() {
 // --- GERENCIAMENTO DE SOCKETS ---
 
 io.on('connection', (socket) => {
-    console.log(`Novo jogador conectado: ${socket.id}`);
-
+    // ... (código de conexão, joinLobby, startGame, etc. permanece o mesmo) ...
     socket.on('joinLobby', (playerName) => {
         if (Object.values(gameState.players).some(p => p.name.toLowerCase() === playerName.toLowerCase())) {
             socket.emit('nameError', 'Este nome já está em uso.');
@@ -226,6 +322,13 @@ io.on('connection', (socket) => {
             console.log(`${guesser.name} acertou: ${gameState.currentCard.palavraAlvo}`);
             gameState.wordGuessedInTurn = true;
 
+            // Armazena o acerto para a fase de avaliação
+            gameState.turnSuccesses.push({
+                card: gameState.currentCard,
+                guesserId: guesser.id,
+                giverId: giver.id
+            });
+
             guesser.score += 4;
             giver.score += 1;
 
@@ -263,6 +366,16 @@ io.on('connection', (socket) => {
             }, 2000);
         }
     });
+
+    // --- NOVO EVENTO PARA DENÚNCIA NA AVALIAÇÃO ---
+    socket.on('reportReview', () => {
+        const player = gameState.players[socket.id];
+        // Verifica se há uma avaliação em andamento e se o jogador não é o giver daquela carta
+        if (player && gameState.currentReviewCard && player.id !== gameState.currentReviewCard.giverId) {
+            gameState.reviewReports.add(player.id);
+            console.log(`${player.name} denunciou a carta ${gameState.currentReviewCard.card.palavraAlvo}`);
+        }
+    });
     
     socket.on('playAgain', () => {
         const player = gameState.players[socket.id];
@@ -276,14 +389,14 @@ io.on('connection', (socket) => {
         if (player) {
             console.log(`Jogador ${player.name} desconectou.`);
             
-            if (socket.id === gameState.currentGiverId) {
-                if (gameState.turnTimer) clearInterval(gameState.turnTimer);
-                gameState.currentTurnIndex++;
-                startNewTurn();
-            }
-
+            const wasGiver = socket.id === gameState.currentGiverId;
             delete gameState.players[socket.id];
 
+            if (wasGiver) {
+                 if (gameState.turnTimer) clearInterval(gameState.turnTimer);
+                 startReviewPhase(); // Se o giver sai, o turno acaba e vai para a avaliação
+            }
+            
             if (player.isHost && Object.keys(gameState.players).length > 0) {
                 const newHostId = Object.keys(gameState.players)[0];
                 gameState.players[newHostId].isHost = true;
@@ -300,7 +413,6 @@ io.on('connection', (socket) => {
     });
 });
 
-// --- INICIALIZAÇÃO DO SERVIDOR ---
 server.listen(PORT, () => {
     console.log(`Servidor rodando na porta ${PORT}`);
     loadCards();
