@@ -35,7 +35,7 @@ body {
     z-index: 1;
 }
 
-h1, h2, h3 {
+h1, h2, h3, h4 {
     color: var(--highlight-color);
     text-align: center;
     margin-top: 0;
@@ -98,12 +98,18 @@ input:focus {
     border-color: var(--accent-color);
 }
 
+/* CORREÇÃO DO LOBBY */
 #player-list-container {
     background-color: var(--secondary-color);
     border-radius: 8px;
-    padding: 1rem;
+    padding: 1.5rem;
     margin: 2rem auto;
     max-width: 400px;
+}
+#player-list-container h3 {
+    margin-bottom: 1rem;
+    font-size: 1.2rem;
+    color: var(--text-color);
 }
 #player-list { list-style: none; padding: 0; }
 #player-list li {
@@ -320,7 +326,7 @@ input:focus {
 #review-result-text.validated { color: #50fa7b; }
 #review-result-text.invalidated { color: #ff5555; }
 
-/* ===== ESTILOS PARA REGRAS ===== */
+/* REGRAS SIMPLIFICADAS */
 .rules-container {
     background-color: rgba(0,0,0,0.2);
     border-top: 1px solid var(--secondary-color);
@@ -346,18 +352,36 @@ input:focus {
     color: #a9a9b3;
     margin-bottom: 0.5rem;
     line-height: 1.5;
+    padding-left: 25px;
+    position: relative;
 }
 .rules-container li::before {
     content: '🔹';
-    margin-right: 10px;
+    position: absolute;
+    left: 0;
+    top: 2px;
     color: var(--skip-color);
 }
 .rules-container li strong {
     color: var(--highlight-color);
 }
-#guesser-view .rules-container {
+.rules-game {
     margin-top: 1.5rem;
     max-width: 100%;
+}
+.rules-review {
+    background: none;
+    border: none;
+    padding: 0;
+    margin-top: 1rem;
+}
+.rules-review li {
+    text-align: center;
+    padding-left: 0;
+    font-size: 0.9rem;
+}
+.rules-review li::before {
+    display: none;
 }
 
 
