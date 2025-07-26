@@ -81,7 +81,8 @@
                 </div>
 
                 <div class="game-center">
-                    <div id="giver-view" class="hidden">
+                    <!-- Contentor APENAS para o jogador da vez -->
+                    <div id="giver-container" class="hidden">
                         <div class="card">
                             <p class="card-instruction">Sua palavra é:</p>
                             <h3 id="target-word">PALAVRA</h3>
@@ -90,10 +91,12 @@
                         </div>
                         <button id="skip-card-btn" class="skip-button">Pular Carta</button>
                     </div>
-                    <div id="guesser-view" class="hidden">
+
+                    <!-- Contentor APENAS para quem está a adivinhar -->
+                    <div id="guesser-container" class="hidden">
                         <div class="guesser-box">
                             <h3>Adivinhe a Palavra!</h3>
-                            <p>O jogador <strong id="giver-name-for-guesser"></strong> está dando as dicas.</p>
+                            <p>O jogador <strong id="giver-name-for-guesser"></strong> está a dar as dicas.</p>
                             <form id="guess-form">
                                 <input id="guess-input" type="text" placeholder="Seu palpite..." autocomplete="off" required />
                                 <button type="submit">Enviar</button>
@@ -110,10 +113,10 @@
                                 </ul>
                             </ul>
                         </div>
+                        <button id="report-btn" class="report-button">
+                            🚨 Denunciar (<span id="report-count">0</span>)
+                        </button>
                     </div>
-                    <button id="report-btn" class="report-button hidden">
-                        🚨 Denunciar (<span id="report-count">0</span>)
-                    </button>
                 </div>
 
                 <div class="game-sidebar">
