@@ -16,14 +16,16 @@ document.addEventListener("DOMContentLoaded", () => {
     const currentGiverName = document.getElementById('current-giver-name');
     const scoreboard = document.getElementById('scoreboard');
     
-    // Novos contentores principais
-    const giverContainer = document.getElementById('giver-container');
-    const guesserContainer = document.getElementById('guesser-container');
+    // Painéis principais
+    const giverPanel = document.getElementById('giver-panel');
+    const guesserPanel = document.getElementById('guesser-panel');
 
+    // Elementos do Giver
     const targetWord = document.getElementById('target-word');
     const tabooWords = document.getElementById('taboo-list');
     const skipCardBtn = document.getElementById('skip-card-btn');
     
+    // Elementos do Guesser
     const giverNameForGuesser = document.getElementById('giver-name-for-guesser');
     const guessForm = document.getElementById('guess-form');
     const guessInput = document.getElementById('guess-input');
@@ -44,14 +46,12 @@ document.addEventListener("DOMContentLoaded", () => {
     const reviewResultArea = document.getElementById('review-result-area');
     const reviewResultText = document.getElementById('review-result-text');
 
-    // --- VARIÁVEIS DE ESTADO DO CLIENTE ---
     let myPlayerId = null;
     let myPlayerIsHost = false;
     let currentGiverId = null;
     let lobbyDataBuffer = null;
     const REVIEW_DURATION_SECONDS = 10;
 
-    // --- FUNÇÕES DE UI ---
     function showScreen(screenId) {
         Object.values(screens).forEach(screen => screen.classList.remove('active'));
         if (screens[screenId]) screens[screenId].classList.add('active');
@@ -70,26 +70,15 @@ document.addEventListener("DOMContentLoaded", () => {
             lobbyDataBuffer = players;
             return;
         }
-
         const me = players.find(p => p.id === myPlayerId);
         myPlayerIsHost = me ? me.isHost : false;
-
-        playerList.innerHTML = players.map(p => `
-            <li>
-                <span>${p.name}</span>
-                ${p.isHost ? '<span class="host-tag">HOST</span>' : ''}
-            </li>
-        `).join('');
-        
+        playerList.innerHTML = players.map(p => `<li><span>${p.name}</span>${p.isHost ? '<span class="host-tag">HOST</span>' : ''}</li>`).join('');
         startGameBtn.disabled = players.length < 3;
         startGameBtn.classList.toggle('hidden', !myPlayerIsHost);
     }
 
     function updateScoreboard(players) {
-        scoreboard.innerHTML = players
-            .sort((a, b) => b.score - a.score)
-            .map(p => `<li><span>${p.name}</span> <span class="score">${p.score}</span></li>`)
-            .join('');
+        scoreboard.innerHTML = players.sort((a, b) => b.score - a.score).map(p => `<li><span>${p.name}</span> <span class="score">${p.score}</span></li>`).join('');
     }
 
     function addGuessToLog(data) {
@@ -113,7 +102,6 @@ document.addEventListener("DOMContentLoaded", () => {
         guessLog.scrollTop = guessLog.scrollHeight;
     }
 
-    // --- EVENT HANDLERS ---
     startGameBtn.addEventListener('click', () => socket.emit('startGame'));
     playAgainBtn.addEventListener('click', () => socket.emit('playAgain'));
     reviewReportBtn.addEventListener('click', () => {
@@ -121,7 +109,6 @@ document.addEventListener("DOMContentLoaded", () => {
         reviewReportBtn.disabled = true;
     });
     skipCardBtn.addEventListener('click', () => socket.emit('skipCard'));
-    
     guessForm.addEventListener('submit', (e) => {
         e.preventDefault();
         const guess = guessInput.value.trim();
@@ -130,13 +117,11 @@ document.addEventListener("DOMContentLoaded", () => {
             guessInput.value = '';
         }
     });
-
     reportBtn.addEventListener('click', () => {
         socket.emit('reportLive');
         reportBtn.disabled = true;
     });
 
-    // --- LÓGICA DE CONEXÃO E SOCKETS ---
     const urlParams = new URLSearchParams(window.location.search);
     const playerName = urlParams.get("name");
     if (playerName) {
@@ -153,10 +138,7 @@ document.addEventListener("DOMContentLoaded", () => {
         }
     });
 
-    socket.on('lobbyUpdate', (players) => {
-        updateLobby(players);
-    });
-
+    socket.on('lobbyUpdate', updateLobby);
     socket.on('nameError', (message) => {
         alert(message);
         window.location.href = '/';
@@ -175,11 +157,11 @@ document.addEventListener("DOMContentLoaded", () => {
 
         // Lógica de exibição final e à prova de falhas
         if (isGiver) {
-            giverContainer.classList.remove('hidden');
-            guesserContainer.classList.add('hidden');
+            giverPanel.classList.remove('hidden');
+            guesserPanel.classList.add('hidden');
         } else {
-            giverContainer.classList.add('hidden');
-            guesserContainer.classList.remove('hidden');
+            giverPanel.classList.add('hidden');
+            guesserPanel.classList.remove('hidden');
         }
         
         giverNameForGuesser.textContent = data.giver.name;
@@ -217,13 +199,10 @@ document.addEventListener("DOMContentLoaded", () => {
     socket.on('showReviewCard', (data) => {
         reviewCardArea.classList.remove('hidden');
         reviewResultArea.classList.add('hidden');
-        
         reviewGuesserName.textContent = data.guesserName;
         reviewTargetWord.textContent = data.card.palavraAlvo;
         reviewTabooList.innerHTML = data.card.tabus.map(t => `<li>${t}</li>`).join('');
-
         reviewReportBtn.disabled = (myPlayerId === currentGiverId);
-
         reviewTimerProgress.style.transition = 'none';
         reviewTimerProgress.style.width = '100%';
         setTimeout(() => {
@@ -252,12 +231,7 @@ document.addEventListener("DOMContentLoaded", () => {
         showScreen('podium');
         playAgainBtn.classList.toggle('hidden', !myPlayerIsHost);
         const medals = ['🥇', '🥈', '🥉'];
-        podiumList.innerHTML = scores.map((p, i) => `
-            <li class="podium-${i + 1}">
-                <span>${medals[i] || '🔹'} ${p.name}</span>
-                <span class="score">${p.score} pts</span>
-            </li>
-        `).join('');
+        podiumList.innerHTML = scores.map((p, i) => `<li class="podium-${i + 1}"><span>${medals[i] || '🔹'} ${p.name}</span><span class="score">${p.score} pts</span></li>`).join('');
     });
 
     socket.on('gameReset', () => {
