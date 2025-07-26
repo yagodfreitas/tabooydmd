@@ -29,12 +29,9 @@ document.addEventListener("DOMContentLoaded", () => {
     const guessLog = document.getElementById('guess-log');
     const reportBtn = document.getElementById('report-btn');
     const reportCount = document.getElementById('report-count');
+    const skipCardBtn = document.getElementById('skip-card-btn'); // Botão de pular
 
-    // Pódio
-    const podiumList = document.getElementById('podium-list');
-    const playAgainBtn = document.getElementById('play-again-btn');
-
-    // --- NOVOS ELEMENTOS PARA AVALIAÇÃO ---
+    // Avaliação
     const reviewOverlay = document.getElementById('review-overlay');
     const reviewTitle = document.getElementById('review-title');
     const reviewCardArea = document.getElementById('review-card-area');
@@ -46,10 +43,10 @@ document.addEventListener("DOMContentLoaded", () => {
     const reviewResultArea = document.getElementById('review-result-area');
     const reviewResultText = document.getElementById('review-result-text');
 
-
     let myPlayerId = null;
     let myPlayerIsHost = false;
     let currentGiverId = null;
+    const REVIEW_DURATION_SECONDS = 10; // Tempo de avaliação em segundos
 
     // --- LÓGICA DE INICIALIZAÇÃO ---
     const urlParams = new URLSearchParams(window.location.search);
@@ -75,13 +72,18 @@ document.addEventListener("DOMContentLoaded", () => {
     }
 
     function updateLobby(players) {
+        const me = players.find(p => p.id === myPlayerId);
+        myPlayerIsHost = me ? me.isHost : false;
+
         playerList.innerHTML = players.map(p => `
             <li>
                 <span>${p.name}</span>
                 ${p.isHost ? '<span class="host-tag">HOST</span>' : ''}
             </li>
         `).join('');
+        
         startGameBtn.disabled = players.length < 3;
+        startGameBtn.classList.toggle('hidden', !myPlayerIsHost);
     }
 
     function updateScoreboard(players) {
@@ -101,6 +103,9 @@ document.addEventListener("DOMContentLoaded", () => {
             case 'invalid':
                 content = `<strong class="guess-log-invalid">🚨 Palavra "${data.word}" foi invalidada por denúncias!</strong>`;
                 break;
+            case 'skipped':
+                content = `<strong class="guess-log-skipped">⏩ A palavra "${data.word}" foi pulada!</strong>`;
+                break;
             default:
                 content = `<strong>${data.name}:</strong> ${data.text}`;
         }
@@ -114,8 +119,9 @@ document.addEventListener("DOMContentLoaded", () => {
     playAgainBtn.addEventListener('click', () => socket.emit('playAgain'));
     reviewReportBtn.addEventListener('click', () => {
         socket.emit('reportReview');
-        reviewReportBtn.disabled = true; // Desabilita após votar
+        reviewReportBtn.disabled = true;
     });
+    skipCardBtn.addEventListener('click', () => socket.emit('skipCard'));
     
     guessForm.addEventListener('submit', (e) => {
         e.preventDefault();
@@ -134,14 +140,10 @@ document.addEventListener("DOMContentLoaded", () => {
     // --- SOCKET.IO LISTENERS ---
     socket.on('welcome', (data) => {
         myPlayerId = data.id;
-        myPlayerIsHost = data.isHost;
-        if (myPlayerIsHost) {
-            startGameBtn.classList.remove('hidden');
-            playAgainBtn.classList.remove('hidden');
-        }
     });
 
     socket.on('lobbyUpdate', updateLobby);
+
     socket.on('nameError', (message) => {
         alert(message);
         window.location.href = '/';
@@ -156,17 +158,22 @@ document.addEventListener("DOMContentLoaded", () => {
         currentGiverName.textContent = data.giver.name;
         guessLog.innerHTML = '';
         
+        // Garante que a visão do adivinhador esteja limpa e visível por padrão
+        guesserView.classList.remove('hidden');
+        giverView.classList.add('hidden'); // Esconde a visão do "giver" por padrão
+
         const isGiver = data.giver.id === myPlayerId;
-        giverView.classList.toggle('hidden', !isGiver);
-        guesserView.classList.toggle('hidden', isGiver);
-        reportBtn.classList.toggle('hidden', isGiver);
-        
-        if (!isGiver) {
-            giverNameForGuesser.textContent = data.giver.name;
+        if (isGiver) {
+            guesserView.classList.add('hidden');
+            giverView.classList.remove('hidden');
         }
+        
+        reportBtn.classList.toggle('hidden', isGiver);
+        giverNameForGuesser.textContent = data.giver.name;
     });
 
     socket.on('cardUpdate', (card) => {
+        // Este evento só é recebido pelo "giver", então podemos popular a view dele
         targetWord.textContent = card.palavraAlvo;
         tabooWords.innerHTML = card.tabus.map(t => `<li>${t}</li>`).join('');
     });
@@ -175,6 +182,8 @@ document.addEventListener("DOMContentLoaded", () => {
         reportBtn.disabled = false;
         reportCount.textContent = '0';
     });
+
+    socket.on('cardSkipped', (data) => addGuessToLog({ ...data, type: 'skipped' }));
 
     socket.on('timerUpdate', (time) => timerDisplay.textContent = time);
     socket.on('scoreUpdate', updateScoreboard);
@@ -187,10 +196,9 @@ document.addEventListener("DOMContentLoaded", () => {
         reportCount.textContent = `${data.count}/${data.required}`;
     });
 
-    // --- NOVOS LISTENERS PARA AVALIAÇÃO ---
     socket.on('startReview', (data) => {
         reviewOverlay.classList.remove('hidden');
-        reviewTitle.textContent = `Fase de Avaliação (${data.totalCards} cartas)`;
+        reviewTitle.textContent = `Fase de Avaliação (${data.totalCards} ${data.totalCards > 1 ? 'cartas' : 'carta'})`;
         reviewCardArea.classList.add('hidden');
         reviewResultArea.classList.remove('hidden');
         reviewResultText.textContent = "Iniciando avaliação...";
@@ -205,14 +213,12 @@ document.addEventListener("DOMContentLoaded", () => {
         reviewTargetWord.textContent = data.card.palavraAlvo;
         reviewTabooList.innerHTML = data.card.tabus.map(t => `<li>${t}</li>`).join('');
 
-        // Jogador da vez não pode denunciar
         reviewReportBtn.disabled = (myPlayerId === currentGiverId);
 
-        // Animação da barra de tempo
         reviewTimerProgress.style.transition = 'none';
         reviewTimerProgress.style.width = '100%';
         setTimeout(() => {
-            reviewTimerProgress.style.transition = 'width 5s linear';
+            reviewTimerProgress.style.transition = `width ${REVIEW_DURATION_SECONDS}s linear`;
             reviewTimerProgress.style.width = '0%';
         }, 100);
     });
@@ -242,13 +248,16 @@ document.addEventListener("DOMContentLoaded", () => {
                 <span class="score">${p.score} pts</span>
             </li>
         `).join('');
+
+        if (myPlayerIsHost) {
+            playAgainBtn.classList.remove('hidden');
+        } else {
+            playAgainBtn.classList.add('hidden');
+        }
     });
 
     socket.on('gameReset', () => {
         showScreen('lobby');
         reviewOverlay.classList.add('hidden');
-        if (myPlayerIsHost) {
-            startGameBtn.classList.remove('hidden');
-        }
     });
 });
