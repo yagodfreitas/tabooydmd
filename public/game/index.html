@@ -23,7 +23,6 @@
                     <h3 id="review-target-word">PALAVRA</h3>
                     <ul id="review-taboo-list"></ul>
                 </div>
-                <!-- Regra simplificada para a fase de avaliação -->
                 <div class="rules-container rules-review">
                     <ul>
                         <li><strong>Pontos (Denúncia):</strong> Se a maioria denunciar, quem deu a dica perde 1 ponto.</li>
@@ -43,9 +42,7 @@
             <p>Aguardando jogadores... O host pode iniciar a partida com no mínimo 3 pessoas.</p>
             <div id="player-list-container">
                 <h3>Jogadores na sala:</h3>
-                <ul id="player-list">
-                    <!-- Jogadores serão inseridos aqui pelo JS -->
-                </ul>
+                <ul id="player-list"></ul>
             </div>
             <button id="start-game-btn" class="hidden">Iniciar Jogo</button>
             
@@ -78,6 +75,7 @@
                 </div>
 
                 <div class="game-center">
+                    <!-- Visão do Giver (começa escondida) -->
                     <div id="giver-view" class="hidden">
                         <div class="card">
                             <p class="card-instruction">Sua palavra é:</p>
@@ -87,7 +85,8 @@
                         </div>
                         <button id="skip-card-btn" class="skip-button">Pular Carta</button>
                     </div>
-                    <div id="guesser-view">
+                    <!-- Visão do Guesser (também começa escondida) -->
+                    <div id="guesser-view" class="hidden">
                         <div class="guesser-box">
                             <h3>Adivinhe a Palavra!</h3>
                             <p>O jogador <strong id="giver-name-for-guesser"></strong> está dando as dicas.</p>
@@ -96,7 +95,6 @@
                                 <button type="submit">Enviar</button>
                             </form>
                         </div>
-                        <!-- Regras simplificadas para quem está adivinhando -->
                         <div class="rules-container rules-game">
                             <ul>
                                 <li><strong>Proibido:</strong> O jogador da vez não pode dizer as palavras tabu, usar gestos, mímicas ou sons.</li>
