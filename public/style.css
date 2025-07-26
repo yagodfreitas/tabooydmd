@@ -23,6 +23,11 @@ body {
     min-height: 100vh;
 }
 
+/* Regra de segurança para esconder elementos */
+.hidden {
+    display: none !important;
+}
+
 .container {
     width: 100%;
     max-width: 1200px;
@@ -79,7 +84,6 @@ button:disabled {
     cursor: not-allowed;
     transform: none;
 }
-button.hidden { display: none; }
 
 input[type="text"] {
     width: 100%;
@@ -219,11 +223,10 @@ input:focus {
     font-weight: 600;
 }
 
-/* ÊNFASE NA ÁREA DO ADIVINHADOR */
 #guesser-panel {
     display: flex;
     flex-direction: column;
-    justify-content: center; /* Centraliza o conteúdo verticalmente */
+    justify-content: center;
     height: 100%;
 }
 .guesser-box { 
