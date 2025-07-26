@@ -13,8 +13,8 @@ const PORT = process.env.PORT || 3000;
 app.use(express.static(path.join(__dirname, 'public')));
 
 // --- CONSTANTES DO JOGO ---
-const TURN_DURATION = 90; // <<-- Tempo do turno aumentado para 90 segundos
-const REVIEW_DURATION = 10000; // <<-- Tempo de avaliação aumentado para 10 segundos
+const TURN_DURATION = 90;
+const REVIEW_DURATION = 10000; // 10 segundos
 
 // --- ESTADO INICIAL DO JOGO ---
 const getInitialGameState = () => ({
@@ -70,7 +70,7 @@ function resetGame() {
     
     gameState = {
         ...getInitialGameState(),
-        players: gameState.players, // Mantém os jogadores conectados
+        players: gameState.players,
     };
     
     io.emit('gameReset');
@@ -223,7 +223,7 @@ function processReviewVotes() {
     let invalidated = false;
     if (giver && gameState.reviewReports.size >= requiredReports) {
         console.log(`Carta "${gameState.currentReviewCard.card.palavraAlvo}" invalidada na avaliação.`);
-        giver.score = Math.max(0, giver.score - 1); // Garante que a pontuação não fique negativa
+        giver.score = Math.max(0, giver.score - 1);
         invalidated = true;
     } else {
         console.log(`Carta "${gameState.currentReviewCard.card.palavraAlvo}" validada.`);
@@ -333,7 +333,6 @@ io.on('connection', (socket) => {
         }
     });
     
-    // <<-- NOVO EVENTO PARA PULAR A CARTA -->>
     socket.on('skipCard', () => {
         if (socket.id === gameState.currentGiverId && gameState.timeLeft > 0) {
             console.log(`Jogador ${gameState.players[socket.id].name} pulou a carta.`);
