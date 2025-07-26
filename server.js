@@ -60,23 +60,33 @@ function shuffleArray(array) {
     }
 }
 
+// <<-- FUNÇÃO resetGame CORRIGIDA E MAIS ROBUSTA -->>
 function resetGame(ioInstance) {
     console.log("Reiniciando o jogo...");
     if (gameState.turnTimer) clearInterval(gameState.turnTimer);
     if (gameState.reviewTimer) clearTimeout(gameState.reviewTimer);
+
+    // Zera a pontuação de todos os jogadores
+    Object.values(gameState.players).forEach(p => p.score = 0);
+
+    // Reseta as propriedades do jogo para o estado inicial
+    gameState.gameStarted = false;
+    gameState.playerOrder = [];
+    gameState.usedCards.clear();
+    gameState.currentTurnIndex = 0;
+    gameState.currentRound = 1;
+    gameState.timeLeft = TURN_DURATION;
+    gameState.currentCard = null;
+    gameState.currentGiverId = null;
+    gameState.turnSuccesses = [];
+    gameState.currentReviewCard = null;
+    gameState.reviewReports.clear();
+    gameState.liveReports.clear();
+    gameState.wordGuessedInTurn = false;
     
-    const players = Object.values(gameState.players);
-    const loadedCards = gameState.cards;
-    players.forEach(p => p.score = 0);
-    
-    gameState = {
-        ...getInitialGameState(),
-        players: gameState.players,
-        cards: loadedCards,
-    };
-    
+    // Envia os eventos para todos os clientes voltarem ao lobby
     ioInstance.emit('gameReset');
-    ioInstance.emit('lobbyUpdate', players);
+    ioInstance.emit('lobbyUpdate', Object.values(gameState.players));
 }
 
 function startGame(socket) {
@@ -113,7 +123,6 @@ function startNewTurn() {
         return;
     }
 
-    // CORREÇÃO: Verifica se ainda há cartas ANTES de começar o turno.
     if (gameState.usedCards.size >= gameState.cards.length) {
         console.log("Não há mais cartas para o próximo turno. Fim de jogo.");
         io.emit('gameError', 'Todas as cartas do baralho foram usadas!');
@@ -151,7 +160,7 @@ function startNewTurn() {
 
 function pickNewCard() {
     if (gameState.usedCards.size >= gameState.cards.length) {
-        gameState.currentCard = null; // Sinaliza que não há mais cartas
+        gameState.currentCard = null;
         return;
     }
     let newCardIndex;
@@ -330,7 +339,6 @@ io.on('connection', (socket) => {
             });
             io.emit('scoreUpdate', Object.values(gameState.players));
             
-            // CORREÇÃO: Verifica se ainda há cartas DEPOIS de um acerto.
             if (gameState.usedCards.size >= gameState.cards.length) {
                 console.log("Última carta do baralho foi usada. Finalizando turno.");
                 if (gameState.turnTimer) clearInterval(gameState.turnTimer);
