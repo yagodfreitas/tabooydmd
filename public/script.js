@@ -155,12 +155,15 @@ document.addEventListener("DOMContentLoaded", () => {
         
         const isGiver = (data.giver.id === myPlayerId);
 
-        // Lógica de exibição final e à prova de falhas
+        // Abordagem à prova de falhas:
+        // 1. Esconde ambos os painéis para garantir um estado limpo.
+        giverPanel.classList.add('hidden');
+        guesserPanel.classList.add('hidden');
+        
+        // 2. Mostra APENAS o painel correto.
         if (isGiver) {
             giverPanel.classList.remove('hidden');
-            guesserPanel.classList.add('hidden');
         } else {
-            giverPanel.classList.add('hidden');
             guesserPanel.classList.remove('hidden');
         }
         
