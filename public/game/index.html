@@ -7,12 +7,10 @@
     <link rel="stylesheet" href="../style.css" />
 </head>
 <body>
-    <!-- Notificação Global -->
     <div id="notification" class="notification">
         <p id="notification-text"></p>
     </div>
 
-    <!-- ===== NOVA TELA DE AVALIAÇÃO (OVERLAY) ===== -->
     <div id="review-overlay" class="overlay-screen hidden">
         <div class="review-container">
             <h2 id="review-title">Fase de Avaliação</h2>
@@ -32,10 +30,8 @@
             </div>
         </div>
     </div>
-    <!-- ============================================= -->
 
     <div id="container" class="container">
-        <!-- TELA DE LOBBY (SALA DE ESPERA) -->
         <div id="lobby-screen" class="screen active">
             <h2>Sala de Espera</h2>
             <p>Aguardando jogadores... O host pode iniciar a partida com no mínimo 3 pessoas.</p>
@@ -46,12 +42,11 @@
             <button id="start-game-btn" class="hidden">Iniciar Jogo</button>
         </div>
 
-        <!-- TELA DE JOGO -->
         <div id="game-screen" class="screen">
             <div class="game-header">
                 <h2>Rodada <span id="round-number">1</span>/3</h2>
                 <div class="timer-container">
-                    <span id="timer">60</span>
+                    <span id="timer">90</span>
                 </div>
             </div>
             <div class="info-bar">
@@ -59,13 +54,11 @@
             </div>
 
             <div class="game-main">
-                <!-- Coluna Esquerda: Placar -->
                 <div class="game-sidebar">
                     <h3>Pontuação</h3>
                     <ul id="scoreboard"></ul>
                 </div>
 
-                <!-- Coluna Central: Ação -->
                 <div class="game-center">
                     <div id="giver-view" class="hidden">
                         <div class="card">
@@ -74,8 +67,10 @@
                             <p class="card-instruction">Palavras Tabu:</p>
                             <ul id="taboo-list"></ul>
                         </div>
+                        <!-- NOVO BOTÃO DE PULAR -->
+                        <button id="skip-card-btn" class="skip-button">Pular Carta</button>
                     </div>
-                    <div id="guesser-view" class="hidden">
+                    <div id="guesser-view">
                         <div class="guesser-box">
                             <h3>Adivinhe a Palavra!</h3>
                             <p>O jogador <strong id="giver-name-for-guesser"></strong> está dando as dicas.</p>
@@ -90,7 +85,6 @@
                     </button>
                 </div>
 
-                <!-- Coluna Direita: Palpites -->
                 <div class="game-sidebar">
                     <h3>Palpites</h3>
                     <div id="guess-log"></div>
@@ -98,7 +92,6 @@
             </div>
         </div>
         
-        <!-- TELA DE PÓDIO (FIM DE JOGO) -->
         <div id="podium-screen" class="screen">
             <h2>Fim de Jogo!</h2>
             <h3>Classificação Final</h3>
