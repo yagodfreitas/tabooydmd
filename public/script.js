@@ -168,11 +168,16 @@ document.addEventListener("DOMContentLoaded", () => {
         
         const isGiver = (data.giver.id === myPlayerId);
 
-        // Lógica de exibição simplificada e robusta
-        giverView.classList.toggle('hidden', !isGiver); // Mostra se for o giver, esconde se não for.
-        guesserView.classList.toggle('hidden', isGiver);  // Mostra se NÃO for o giver, esconde se for.
-        
-        reportBtn.classList.toggle('hidden', isGiver);
+        // Lógica de exibição à prova de falhas
+        if (isGiver) {
+            giverView.classList.remove('hidden');
+            guesserView.classList.add('hidden');
+            reportBtn.classList.add('hidden');
+        } else {
+            giverView.classList.add('hidden');
+            guesserView.classList.remove('hidden');
+            reportBtn.classList.remove('hidden');
+        }
         
         giverNameForGuesser.textContent = data.giver.name;
     });
