@@ -20,7 +20,7 @@ const REVIEW_DURATION = 10000; // 10 segundos
 const getInitialGameState = () => ({
     players: {},
     playerOrder: [],
-    cards: [], // Corrigido: Inicializa como um array vazio para evitar erro de referência.
+    cards: [],
     usedCards: new Set(),
     gameStarted: false,
     currentTurnIndex: 0,
@@ -45,7 +45,7 @@ let gameState = getInitialGameState();
 function loadCards() {
     try {
         const cardsData = fs.readFileSync(path.join(__dirname, 'assets/cards.json'));
-        gameState.cards = JSON.parse(cardsData); // Carrega as cartas para o estado do jogo.
+        gameState.cards = JSON.parse(cardsData);
         console.log(`Sucesso: ${gameState.cards.length} cartas carregadas.`);
     } catch (error) {
         console.error("Erro ao carregar assets/cards.json:", error);
@@ -60,24 +60,23 @@ function shuffleArray(array) {
     }
 }
 
-function resetGame() {
+function resetGame(ioInstance) {
     console.log("Reiniciando o jogo...");
     if (gameState.turnTimer) clearInterval(gameState.turnTimer);
     if (gameState.reviewTimer) clearTimeout(gameState.reviewTimer);
     
     const players = Object.values(gameState.players);
-    const loadedCards = gameState.cards; // Salva as cartas carregadas.
+    const loadedCards = gameState.cards;
     players.forEach(p => p.score = 0);
     
-    // Reseta o estado, mas preserva os jogadores e as cartas carregadas.
     gameState = {
         ...getInitialGameState(),
         players: gameState.players,
         cards: loadedCards,
     };
     
-    io.emit('gameReset');
-    io.emit('lobbyUpdate', players);
+    ioInstance.emit('gameReset');
+    ioInstance.emit('lobbyUpdate', players);
 }
 
 function startGame(socket) {
@@ -377,7 +376,7 @@ io.on('connection', (socket) => {
     socket.on('playAgain', () => {
         const player = gameState.players[socket.id];
         if (player && player.isHost) {
-            resetGame();
+            resetGame(io);
         }
     });
 
@@ -386,27 +385,26 @@ io.on('connection', (socket) => {
         if (!disconnectedPlayer) return;
 
         console.log(`Jogador ${disconnectedPlayer.name} desconectou.`);
-
         const wasHost = disconnectedPlayer.isHost;
         const wasGiver = socket.id === gameState.currentGiverId;
-
         delete gameState.players[socket.id];
 
         const remainingPlayers = Object.values(gameState.players);
+        
         if (remainingPlayers.length === 0) {
-            console.log("Todos os jogadores saíram. Resetando o servidor.");
+            console.log("Todos os jogadores saíram. Resetando o estado do jogo.");
             if (gameState.turnTimer) clearInterval(gameState.turnTimer);
             if (gameState.reviewTimer) clearTimeout(gameState.reviewTimer);
+            const loadedCards = gameState.cards;
             gameState = getInitialGameState();
-            return; 
+            gameState.cards = loadedCards; // Mantém as cartas carregadas
+            return;
         }
 
-        if (wasHost && remainingPlayers.length > 0) {
+        if (wasHost) {
             const newHost = remainingPlayers[0];
-            if (newHost) {
-                newHost.isHost = true;
-                console.log(`Novo host: ${newHost.name}`);
-            }
+            newHost.isHost = true;
+            console.log(`Novo host: ${newHost.name}`);
         }
 
         if (gameState.gameStarted) {
@@ -414,13 +412,11 @@ io.on('connection', (socket) => {
                 if (gameState.turnTimer) clearInterval(gameState.turnTimer);
                 console.log("O jogador da vez desconectou. Indo para a avaliação.");
                 startReviewPhase();
-            }
-            else if (remainingPlayers.length < 3) {
+            } else if (remainingPlayers.length < 3) {
                 console.log("Jogadores insuficientes para continuar. Voltando para o lobby.");
-                resetGame();
-            }
-            else {
-                 io.emit('lobbyUpdate', remainingPlayers);
+                resetGame(io);
+            } else {
+                io.emit('lobbyUpdate', remainingPlayers);
             }
         } else {
             io.emit('lobbyUpdate', remainingPlayers);
