@@ -98,7 +98,6 @@ input:focus {
     border-color: var(--accent-color);
 }
 
-/* CORREÇÃO DO LOBBY */
 #player-list-container {
     background-color: var(--secondary-color);
     border-radius: 8px;
@@ -326,7 +325,7 @@ input:focus {
 #review-result-text.validated { color: #50fa7b; }
 #review-result-text.invalidated { color: #ff5555; }
 
-/* REGRAS SIMPLIFICADAS */
+/* REGRAS DETALHADAS */
 .rules-container {
     background-color: rgba(0,0,0,0.2);
     border-top: 1px solid var(--secondary-color);
@@ -335,12 +334,13 @@ input:focus {
     margin: 2rem auto 0 auto;
     max-width: 800px;
 }
-.rules-container h4 {
+.rules-container h4, .rule-block strong {
     color: var(--text-color);
     margin-top: 0;
     margin-bottom: 1rem;
     text-align: left;
     font-size: 1.1rem;
+    display: block;
 }
 .rules-container ul {
     list-style: none;
@@ -348,22 +348,24 @@ input:focus {
     margin: 0;
 }
 .rules-container li {
-    font-size: 0.85rem;
+    font-size: 0.9rem;
     color: #a9a9b3;
     margin-bottom: 0.5rem;
     line-height: 1.5;
-    padding-left: 25px;
-    position: relative;
-}
-.rules-container li::before {
-    content: '🔹';
-    position: absolute;
-    left: 0;
-    top: 2px;
-    color: var(--skip-color);
 }
 .rules-container li strong {
     color: var(--highlight-color);
+}
+.sub-rules {
+    list-style: none;
+    padding-left: 20px !important;
+    margin-top: 0.5rem;
+}
+.sub-rules li::before {
+    content: '›';
+    margin-right: 10px;
+    color: var(--accent-color);
+    font-weight: bold;
 }
 .rules-game {
     margin-top: 1.5rem;
@@ -380,10 +382,6 @@ input:focus {
     padding-left: 0;
     font-size: 0.9rem;
 }
-.rules-review li::before {
-    display: none;
-}
-
 
 @media (max-width: 900px) {
     .game-main {
