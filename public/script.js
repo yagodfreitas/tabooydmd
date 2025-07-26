@@ -9,12 +9,8 @@ document.addEventListener("DOMContentLoaded", () => {
     };
     const notification = document.getElementById('notification');
     const notificationText = document.getElementById('notification-text');
-
-    // Lobby
     const playerList = document.getElementById('player-list');
     const startGameBtn = document.getElementById('start-game-btn');
-
-    // Jogo
     const roundNumber = document.getElementById('round-number');
     const timerDisplay = document.getElementById('timer');
     const currentGiverName = document.getElementById('current-giver-name');
@@ -30,8 +26,8 @@ document.addEventListener("DOMContentLoaded", () => {
     const reportBtn = document.getElementById('report-btn');
     const reportCount = document.getElementById('report-count');
     const skipCardBtn = document.getElementById('skip-card-btn');
-
-    // Avaliação
+    const podiumList = document.getElementById('podium-list');
+    const playAgainBtn = document.getElementById('play-again-btn');
     const reviewOverlay = document.getElementById('review-overlay');
     const reviewTitle = document.getElementById('review-title');
     const reviewCardArea = document.getElementById('review-card-area');
@@ -43,19 +39,12 @@ document.addEventListener("DOMContentLoaded", () => {
     const reviewResultArea = document.getElementById('review-result-area');
     const reviewResultText = document.getElementById('review-result-text');
 
+    // --- VARIÁVEIS DE ESTADO DO CLIENTE ---
     let myPlayerId = null;
     let myPlayerIsHost = false;
     let currentGiverId = null;
+    let lobbyDataBuffer = null; // Buffer para resolver a corrida de eventos
     const REVIEW_DURATION_SECONDS = 10;
-
-    // --- LÓGICA DE INICIALIZAÇÃO ---
-    const urlParams = new URLSearchParams(window.location.search);
-    const playerName = urlParams.get("name");
-    if (playerName) {
-        socket.emit("joinLobby", playerName);
-    } else {
-        window.location.href = '/';
-    }
 
     // --- FUNÇÕES DE UI ---
     function showScreen(screenId) {
@@ -72,6 +61,12 @@ document.addEventListener("DOMContentLoaded", () => {
     }
 
     function updateLobby(players) {
+        if (!myPlayerId) {
+            // Se ainda não sabemos nosso ID, guardamos os dados para depois.
+            lobbyDataBuffer = players;
+            return;
+        }
+
         const me = players.find(p => p.id === myPlayerId);
         myPlayerIsHost = me ? me.isHost : false;
 
@@ -137,12 +132,27 @@ document.addEventListener("DOMContentLoaded", () => {
         reportBtn.disabled = true;
     });
 
-    // --- SOCKET.IO LISTENERS ---
+    // --- LÓGICA DE CONEXÃO E SOCKETS ---
+    const urlParams = new URLSearchParams(window.location.search);
+    const playerName = urlParams.get("name");
+    if (playerName) {
+        socket.emit("joinLobby", playerName);
+    } else {
+        window.location.href = '/';
+    }
+
     socket.on('welcome', (data) => {
         myPlayerId = data.id;
+        // Agora que sabemos nosso ID, processamos os dados do lobby se eles chegaram antes.
+        if (lobbyDataBuffer) {
+            updateLobby(lobbyDataBuffer);
+            lobbyDataBuffer = null; // Limpa o buffer
+        }
     });
 
-    socket.on('lobbyUpdate', updateLobby);
+    socket.on('lobbyUpdate', (players) => {
+        updateLobby(players);
+    });
 
     socket.on('nameError', (message) => {
         alert(message);
@@ -182,14 +192,11 @@ document.addEventListener("DOMContentLoaded", () => {
     });
 
     socket.on('cardSkipped', (data) => addGuessToLog({ ...data, type: 'skipped' }));
-
     socket.on('timerUpdate', (time) => timerDisplay.textContent = time);
     socket.on('scoreUpdate', updateScoreboard);
-
     socket.on('guessBroadcast', (data) => addGuessToLog(data));
     socket.on('cardSuccess', (data) => addGuessToLog({ ...data, type: 'success' }));
     socket.on('cardInvalidated', (data) => addGuessToLog({ ...data, type: 'invalid' }));
-
     socket.on('reportCount', (data) => {
         reportCount.textContent = `${data.count}/${data.required}`;
     });
