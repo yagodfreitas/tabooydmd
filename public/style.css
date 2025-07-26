@@ -166,6 +166,8 @@ input:focus {
     background-color: var(--secondary-color);
     border-radius: 8px;
     padding: 1.5rem;
+    display: flex;
+    flex-direction: column;
 }
 #scoreboard, #podium-list { list-style: none; padding: 0; }
 #scoreboard li, #podium-list li {
@@ -217,8 +219,34 @@ input:focus {
     font-weight: 600;
 }
 
-.guesser-box { text-align: center; }
-.guesser-box h3 { color: var(--text-color); }
+/* ÊNFASE NA ÁREA DO ADIVINHADOR */
+#guesser-panel {
+    display: flex;
+    flex-direction: column;
+    justify-content: center; /* Centraliza o conteúdo verticalmente */
+    height: 100%;
+}
+.guesser-box { 
+    text-align: center;
+    flex-grow: 1;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+}
+.guesser-box h3 { 
+    color: var(--text-color);
+    font-size: 1.8rem;
+}
+.guesser-box #guess-input {
+    padding: 1rem;
+    font-size: 1.2rem;
+    max-width: 400px;
+}
+.guesser-box button {
+    padding: 1rem;
+    font-size: 1.2rem;
+    max-width: 400px;
+}
 
 #guess-log {
     height: 300px;
@@ -325,7 +353,6 @@ input:focus {
 #review-result-text.validated { color: #50fa7b; }
 #review-result-text.invalidated { color: #ff5555; }
 
-/* REGRAS DETALHADAS */
 .rules-container {
     background-color: rgba(0,0,0,0.2);
     border-top: 1px solid var(--secondary-color);
@@ -352,9 +379,6 @@ input:focus {
     color: #a9a9b3;
     margin-bottom: 0.5rem;
     line-height: 1.5;
-}
-.rules-container li strong {
-    color: var(--highlight-color);
 }
 .sub-rules {
     list-style: none;
