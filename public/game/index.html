@@ -49,10 +49,16 @@
             <div class="rules-container">
                 <h4>Regras do Jogo</h4>
                 <ul>
-                    <li><strong>Objetivo:</strong> Faça seu time adivinhar a palavra no topo do card.</li>
-                    <li><strong>Proibido:</strong> Dizer qualquer uma das 5 palavras tabu listadas. Também é proibido usar gestos, mímicas ou sons.</li>
                     <li><strong>Pontos (Acerto):</strong> Quem adivinha ganha <strong>4 pontos</strong>. Quem dá a dica ganha <strong>1 ponto</strong>.</li>
-                    <li><strong>Pontos (Denúncia):</strong> Após o turno, cada carta acertada é avaliada. Se a maioria dos jogadores denunciar, quem deu a dica perde 1 ponto.</li>
+                    <li class="rule-block">
+                        <strong>O jogador da vez NÃO PODE:</strong>
+                        <ul class="sub-rules">
+                            <li>Dizer qualquer palavra da lista tabu.</li>
+                            <li>Usar gestos, mímicas ou sons.</li>
+                            <li>Usar formas derivadas da palavra (plural, diminutivo, etc.).</li>
+                            <li>Dizer “rima com”, “começa com” ou soletrar.</li>
+                        </ul>
+                    </li>
                 </ul>
             </div>
         </div>
@@ -75,7 +81,6 @@
                 </div>
 
                 <div class="game-center">
-                    <!-- Visão do Giver (começa escondida) -->
                     <div id="giver-view" class="hidden">
                         <div class="card">
                             <p class="card-instruction">Sua palavra é:</p>
@@ -85,7 +90,6 @@
                         </div>
                         <button id="skip-card-btn" class="skip-button">Pular Carta</button>
                     </div>
-                    <!-- Visão do Guesser (também começa escondida) -->
                     <div id="guesser-view" class="hidden">
                         <div class="guesser-box">
                             <h3>Adivinhe a Palavra!</h3>
@@ -96,9 +100,14 @@
                             </form>
                         </div>
                         <div class="rules-container rules-game">
-                            <ul>
-                                <li><strong>Proibido:</strong> O jogador da vez não pode dizer as palavras tabu, usar gestos, mímicas ou sons.</li>
-                                <li><strong>Denúncia:</strong> Se uma regra for quebrada, use o botão <strong>🚨 Denunciar</strong> para anular a carta.</li>
+                             <ul class="rule-block">
+                                <strong>O jogador da vez NÃO PODE:</strong>
+                                <ul class="sub-rules">
+                                    <li>Dizer as palavras tabu.</li>
+                                    <li>Usar gestos, mímicas ou sons.</li>
+                                    <li>Usar palavras derivadas (plural, etc.).</li>
+                                    <li>Dar dicas como "rima com" ou "começa com".</li>
+                                </ul>
                             </ul>
                         </div>
                     </div>
