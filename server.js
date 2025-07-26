@@ -12,32 +12,33 @@ const PORT = process.env.PORT || 3000;
 
 app.use(express.static(path.join(__dirname, 'public')));
 
-// --- ESTADO DO JOGO (GAME STATE) ---
-let gameState = {
+// --- CONSTANTES DO JOGO ---
+const TURN_DURATION = 90; // <<-- Tempo do turno aumentado para 90 segundos
+const REVIEW_DURATION = 10000; // <<-- Tempo de avaliação aumentado para 10 segundos
+
+// --- ESTADO INICIAL DO JOGO ---
+const getInitialGameState = () => ({
     players: {},
     playerOrder: [],
-    cards: [],
+    cards: gameState ? gameState.cards : [],
     usedCards: new Set(),
-    
     gameStarted: false,
     currentTurnIndex: 0,
     currentRound: 1,
     maxRounds: 3,
-
     turnTimer: null,
     reviewTimer: null,
-    timeLeft: 60,
-    
+    timeLeft: TURN_DURATION,
     currentCard: null,
     currentGiverId: null,
-    
     turnSuccesses: [],
     currentReviewCard: null,
     reviewReports: new Set(),
-    
     liveReports: new Set(),
     wordGuessedInTurn: false,
-};
+});
+
+let gameState = getInitialGameState();
 
 // --- FUNÇÕES DE LÓGICA DO JOGO ---
 
@@ -64,22 +65,16 @@ function resetGame() {
     if (gameState.turnTimer) clearInterval(gameState.turnTimer);
     if (gameState.reviewTimer) clearTimeout(gameState.reviewTimer);
     
-    Object.values(gameState.players).forEach(p => p.score = 0);
+    const players = Object.values(gameState.players);
+    players.forEach(p => p.score = 0);
     
-    gameState.gameStarted = false;
-    gameState.playerOrder = [];
-    gameState.usedCards.clear();
-    gameState.currentTurnIndex = 0;
-    gameState.currentRound = 1;
-    gameState.timeLeft = 60;
-    gameState.currentCard = null;
-    gameState.currentGiverId = null;
-    gameState.liveReports.clear();
-    gameState.turnSuccesses = [];
-    gameState.currentReviewCard = null;
+    gameState = {
+        ...getInitialGameState(),
+        players: gameState.players, // Mantém os jogadores conectados
+    };
     
     io.emit('gameReset');
-    io.emit('lobbyUpdate', Object.values(gameState.players));
+    io.emit('lobbyUpdate', players);
 }
 
 function startGame(socket) {
@@ -134,7 +129,7 @@ function startNewTurn() {
         return;
     }
     
-    gameState.timeLeft = 60;
+    gameState.timeLeft = TURN_DURATION;
     gameState.liveReports.clear();
     gameState.wordGuessedInTurn = false;
 
@@ -150,8 +145,10 @@ function startNewTurn() {
 }
 
 function pickNewCard() {
-    if (gameState.usedCards.size === gameState.cards.length) {
+    if (gameState.usedCards.size >= gameState.cards.length) {
         gameState.currentCard = null;
+        io.emit('gameError', 'Todas as cartas do baralho foram usadas!');
+        endGame();
         return;
     }
     let newCardIndex;
@@ -213,7 +210,7 @@ function reviewNextCard() {
 
     gameState.reviewTimer = setTimeout(() => {
         processReviewVotes();
-    }, 5000);
+    }, REVIEW_DURATION);
 }
 
 function processReviewVotes() {
@@ -226,7 +223,7 @@ function processReviewVotes() {
     let invalidated = false;
     if (giver && gameState.reviewReports.size >= requiredReports) {
         console.log(`Carta "${gameState.currentReviewCard.card.palavraAlvo}" invalidada na avaliação.`);
-        giver.score -= 1;
+        giver.score = Math.max(0, giver.score - 1); // Garante que a pontuação não fique negativa
         invalidated = true;
     } else {
         console.log(`Carta "${gameState.currentReviewCard.card.palavraAlvo}" validada.`);
@@ -288,7 +285,7 @@ io.on('connection', (socket) => {
         };
         console.log(`Jogador ${playerName} (${socket.id}) entrou.`);
 
-        socket.emit('welcome', { id: socket.id, isHost: gameState.players[socket.id].isHost });
+        socket.emit('welcome', { id: socket.id });
         io.emit('lobbyUpdate', Object.values(gameState.players));
     });
     
@@ -336,6 +333,15 @@ io.on('connection', (socket) => {
         }
     });
     
+    // <<-- NOVO EVENTO PARA PULAR A CARTA -->>
+    socket.on('skipCard', () => {
+        if (socket.id === gameState.currentGiverId && gameState.timeLeft > 0) {
+            console.log(`Jogador ${gameState.players[socket.id].name} pulou a carta.`);
+            io.emit('cardSkipped', { word: gameState.currentCard.palavraAlvo });
+            pickNewCard();
+        }
+    });
+
     socket.on('reportLive', () => {
         if (!gameState.currentGiverId || socket.id === gameState.currentGiverId || gameState.liveReports.has(socket.id)) return;
         
@@ -374,30 +380,48 @@ io.on('connection', (socket) => {
     });
 
     socket.on('disconnect', () => {
-        const player = gameState.players[socket.id];
-        if (player) {
-            console.log(`Jogador ${player.name} desconectou.`);
-            
-            const wasGiver = socket.id === gameState.currentGiverId;
-            delete gameState.players[socket.id];
+        const disconnectedPlayer = gameState.players[socket.id];
+        if (!disconnectedPlayer) return;
 
+        console.log(`Jogador ${disconnectedPlayer.name} desconectou.`);
+
+        const wasHost = disconnectedPlayer.isHost;
+        const wasGiver = socket.id === gameState.currentGiverId;
+
+        delete gameState.players[socket.id];
+
+        const remainingPlayers = Object.values(gameState.players);
+        if (remainingPlayers.length === 0) {
+            console.log("Todos os jogadores saíram. Resetando o servidor.");
+            if (gameState.turnTimer) clearInterval(gameState.turnTimer);
+            if (gameState.reviewTimer) clearTimeout(gameState.reviewTimer);
+            gameState = getInitialGameState();
+            return; 
+        }
+
+        if (wasHost && remainingPlayers.length > 0) {
+            const newHost = remainingPlayers[0];
+            if (newHost) {
+                newHost.isHost = true;
+                console.log(`Novo host: ${newHost.name}`);
+            }
+        }
+
+        if (gameState.gameStarted) {
             if (wasGiver) {
-                 if (gameState.turnTimer) clearInterval(gameState.turnTimer);
-                 startReviewPhase();
+                if (gameState.turnTimer) clearInterval(gameState.turnTimer);
+                console.log("O jogador da vez desconectou. Indo para a avaliação.");
+                startReviewPhase();
             }
-            
-            if (player.isHost && Object.keys(gameState.players).length > 0) {
-                const newHostId = Object.keys(gameState.players)[0];
-                gameState.players[newHostId].isHost = true;
-                console.log(`Novo host: ${gameState.players[newHostId].name}`);
-            }
-            
-            if (Object.keys(gameState.players).length < 3 && gameState.gameStarted) {
-                console.log("Jogadores insuficientes, voltando para o lobby.");
+            else if (remainingPlayers.length < 3) {
+                console.log("Jogadores insuficientes para continuar. Voltando para o lobby.");
                 resetGame();
-            } else {
-                io.emit('lobbyUpdate', Object.values(gameState.players));
             }
+            else {
+                 io.emit('lobbyUpdate', remainingPlayers);
+            }
+        } else {
+            io.emit('lobbyUpdate', remainingPlayers);
         }
     });
 });
