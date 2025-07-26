@@ -168,17 +168,11 @@ document.addEventListener("DOMContentLoaded", () => {
         
         const isGiver = (data.giver.id === myPlayerId);
 
-        if (isGiver) {
-            giverView.classList.remove('hidden');
-            guesserView.classList.add('hidden');
-        } else {
-            giverView.classList.add('hidden');
-            guesserView.classList.remove('hidden');
-        }
+        // Lógica de exibição simplificada e robusta
+        giverView.classList.toggle('hidden', !isGiver); // Mostra se for o giver, esconde se não for.
+        guesserView.classList.toggle('hidden', isGiver);  // Mostra se NÃO for o giver, esconde se for.
         
-        // CORREÇÃO: Controla a visibilidade dos botões de ação com base no papel do jogador.
-        reportBtn.classList.toggle('hidden', isGiver); // Mostra para adivinhadores, esconde para o giver.
-        skipCardBtn.classList.toggle('hidden', !isGiver); // Mostra para o giver, esconde para adivinhadores.
+        reportBtn.classList.toggle('hidden', isGiver);
         
         giverNameForGuesser.textContent = data.giver.name;
     });
