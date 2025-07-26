@@ -29,7 +29,7 @@ document.addEventListener("DOMContentLoaded", () => {
     const guessLog = document.getElementById('guess-log');
     const reportBtn = document.getElementById('report-btn');
     const reportCount = document.getElementById('report-count');
-    const skipCardBtn = document.getElementById('skip-card-btn'); // Botão de pular
+    const skipCardBtn = document.getElementById('skip-card-btn');
 
     // Avaliação
     const reviewOverlay = document.getElementById('review-overlay');
@@ -46,7 +46,7 @@ document.addEventListener("DOMContentLoaded", () => {
     let myPlayerId = null;
     let myPlayerIsHost = false;
     let currentGiverId = null;
-    const REVIEW_DURATION_SECONDS = 10; // Tempo de avaliação em segundos
+    const REVIEW_DURATION_SECONDS = 10;
 
     // --- LÓGICA DE INICIALIZAÇÃO ---
     const urlParams = new URLSearchParams(window.location.search);
@@ -158,9 +158,8 @@ document.addEventListener("DOMContentLoaded", () => {
         currentGiverName.textContent = data.giver.name;
         guessLog.innerHTML = '';
         
-        // Garante que a visão do adivinhador esteja limpa e visível por padrão
         guesserView.classList.remove('hidden');
-        giverView.classList.add('hidden'); // Esconde a visão do "giver" por padrão
+        giverView.classList.add('hidden');
 
         const isGiver = data.giver.id === myPlayerId;
         if (isGiver) {
@@ -173,7 +172,6 @@ document.addEventListener("DOMContentLoaded", () => {
     });
 
     socket.on('cardUpdate', (card) => {
-        // Este evento só é recebido pelo "giver", então podemos popular a view dele
         targetWord.textContent = card.palavraAlvo;
         tabooWords.innerHTML = card.tabus.map(t => `<li>${t}</li>`).join('');
     });
@@ -241,6 +239,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
     socket.on('gameOver', (scores) => {
         showScreen('podium');
+        playAgainBtn.classList.toggle('hidden', !myPlayerIsHost);
         const medals = ['🥇', '🥈', '🥉'];
         podiumList.innerHTML = scores.map((p, i) => `
             <li class="podium-${i + 1}">
@@ -248,12 +247,6 @@ document.addEventListener("DOMContentLoaded", () => {
                 <span class="score">${p.score} pts</span>
             </li>
         `).join('');
-
-        if (myPlayerIsHost) {
-            playAgainBtn.classList.remove('hidden');
-        } else {
-            playAgainBtn.classList.add('hidden');
-        }
     });
 
     socket.on('gameReset', () => {
