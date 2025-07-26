@@ -34,13 +34,36 @@ document.addEventListener("DOMContentLoaded", () => {
     const podiumList = document.getElementById('podium-list');
     const playAgainBtn = document.getElementById('play-again-btn');
 
+    // --- NOVOS ELEMENTOS PARA AVALIAÇÃO ---
+    const reviewOverlay = document.getElementById('review-overlay');
+    const reviewTitle = document.getElementById('review-title');
+    const reviewCardArea = document.getElementById('review-card-area');
+    const reviewTimerProgress = document.getElementById('review-timer-progress');
+    const reviewGuesserName = document.getElementById('review-guesser-name');
+    const reviewTargetWord = document.getElementById('review-target-word');
+    const reviewTabooList = document.getElementById('review-taboo-list');
+    const reviewReportBtn = document.getElementById('review-report-btn');
+    const reviewResultArea = document.getElementById('review-result-area');
+    const reviewResultText = document.getElementById('review-result-text');
+
+
     let myPlayerId = null;
     let myPlayerIsHost = false;
+    let currentGiverId = null;
+
+    // --- LÓGICA DE INICIALIZAÇÃO ---
+    const urlParams = new URLSearchParams(window.location.search);
+    const playerName = urlParams.get("name");
+    if (playerName) {
+        socket.emit("joinLobby", playerName);
+    } else {
+        window.location.href = '/';
+    }
 
     // --- FUNÇÕES DE UI ---
     function showScreen(screenId) {
         Object.values(screens).forEach(screen => screen.classList.remove('active'));
-        screens[screenId].classList.add('active');
+        if (screens[screenId]) screens[screenId].classList.add('active');
     }
 
     function showNotification(message, type = 'error') {
@@ -86,18 +109,13 @@ document.addEventListener("DOMContentLoaded", () => {
         guessLog.scrollTop = guessLog.scrollHeight;
     }
 
-    // --- LÓGICA DE INICIALIZAÇÃO ---
-    const urlParams = new URLSearchParams(window.location.search);
-    const playerName = urlParams.get("name");
-    if (playerName) {
-        socket.emit("joinLobby", playerName);
-    } else {
-        window.location.href = '/'; // Se não tiver nome, volta para o login
-    }
-
     // --- EVENT HANDLERS ---
     startGameBtn.addEventListener('click', () => socket.emit('startGame'));
     playAgainBtn.addEventListener('click', () => socket.emit('playAgain'));
+    reviewReportBtn.addEventListener('click', () => {
+        socket.emit('reportReview');
+        reviewReportBtn.disabled = true; // Desabilita após votar
+    });
     
     guessForm.addEventListener('submit', (e) => {
         e.preventDefault();
@@ -132,6 +150,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
     socket.on('newTurn', (data) => {
         showScreen('game');
+        currentGiverId = data.giver.id;
         roundNumber.textContent = data.round;
         timerDisplay.textContent = data.timeLeft;
         currentGiverName.textContent = data.giver.name;
@@ -168,6 +187,52 @@ document.addEventListener("DOMContentLoaded", () => {
         reportCount.textContent = `${data.count}/${data.required}`;
     });
 
+    // --- NOVOS LISTENERS PARA AVALIAÇÃO ---
+    socket.on('startReview', (data) => {
+        reviewOverlay.classList.remove('hidden');
+        reviewTitle.textContent = `Fase de Avaliação (${data.totalCards} cartas)`;
+        reviewCardArea.classList.add('hidden');
+        reviewResultArea.classList.remove('hidden');
+        reviewResultText.textContent = "Iniciando avaliação...";
+        reviewResultText.className = '';
+    });
+
+    socket.on('showReviewCard', (data) => {
+        reviewCardArea.classList.remove('hidden');
+        reviewResultArea.classList.add('hidden');
+        
+        reviewGuesserName.textContent = data.guesserName;
+        reviewTargetWord.textContent = data.card.palavraAlvo;
+        reviewTabooList.innerHTML = data.card.tabus.map(t => `<li>${t}</li>`).join('');
+
+        // Jogador da vez não pode denunciar
+        reviewReportBtn.disabled = (myPlayerId === currentGiverId);
+
+        // Animação da barra de tempo
+        reviewTimerProgress.style.transition = 'none';
+        reviewTimerProgress.style.width = '100%';
+        setTimeout(() => {
+            reviewTimerProgress.style.transition = 'width 5s linear';
+            reviewTimerProgress.style.width = '0%';
+        }, 100);
+    });
+
+    socket.on('reviewResult', (data) => {
+        reviewCardArea.classList.add('hidden');
+        reviewResultArea.classList.remove('hidden');
+        if (data.invalidated) {
+            reviewResultText.textContent = `Carta "${data.word}" invalidada! (${data.reports}/${data.required} votos). -1 pt para o giver.`;
+            reviewResultText.className = 'invalidated';
+        } else {
+            reviewResultText.textContent = `Carta "${data.word}" validada. (${data.reports}/${data.required} votos)`;
+            reviewResultText.className = 'validated';
+        }
+    });
+
+    socket.on('endReview', () => {
+        reviewOverlay.classList.add('hidden');
+    });
+
     socket.on('gameOver', (scores) => {
         showScreen('podium');
         const medals = ['🥇', '🥈', '🥉'];
@@ -181,6 +246,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
     socket.on('gameReset', () => {
         showScreen('lobby');
+        reviewOverlay.classList.add('hidden');
         if (myPlayerIsHost) {
             startGameBtn.classList.remove('hidden');
         }
