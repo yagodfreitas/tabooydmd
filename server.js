@@ -397,14 +397,16 @@ io.on('connection', (socket) => {
             if (gameState.reviewTimer) clearTimeout(gameState.reviewTimer);
             const loadedCards = gameState.cards;
             gameState = getInitialGameState();
-            gameState.cards = loadedCards; // Mantém as cartas carregadas
+            gameState.cards = loadedCards;
             return;
         }
 
-        if (wasHost) {
+        if (wasHost && remainingPlayers.length > 0) {
             const newHost = remainingPlayers[0];
-            newHost.isHost = true;
-            console.log(`Novo host: ${newHost.name}`);
+            if (newHost) {
+                newHost.isHost = true;
+                console.log(`Novo host: ${newHost.name}`);
+            }
         }
 
         if (gameState.gameStarted) {
