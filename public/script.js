@@ -15,17 +15,22 @@ document.addEventListener("DOMContentLoaded", () => {
     const timerDisplay = document.getElementById('timer');
     const currentGiverName = document.getElementById('current-giver-name');
     const scoreboard = document.getElementById('scoreboard');
-    const giverView = document.getElementById('giver-view');
-    const guesserView = document.getElementById('guesser-view');
-    const giverNameForGuesser = document.getElementById('giver-name-for-guesser');
+    
+    // Novos contentores principais
+    const giverContainer = document.getElementById('giver-container');
+    const guesserContainer = document.getElementById('guesser-container');
+
     const targetWord = document.getElementById('target-word');
     const tabooWords = document.getElementById('taboo-list');
+    const skipCardBtn = document.getElementById('skip-card-btn');
+    
+    const giverNameForGuesser = document.getElementById('giver-name-for-guesser');
     const guessForm = document.getElementById('guess-form');
     const guessInput = document.getElementById('guess-input');
-    const guessLog = document.getElementById('guess-log');
     const reportBtn = document.getElementById('report-btn');
     const reportCount = document.getElementById('report-count');
-    const skipCardBtn = document.getElementById('skip-card-btn');
+    
+    const guessLog = document.getElementById('guess-log');
     const podiumList = document.getElementById('podium-list');
     const playAgainBtn = document.getElementById('play-again-btn');
     const reviewOverlay = document.getElementById('review-overlay');
@@ -168,15 +173,13 @@ document.addEventListener("DOMContentLoaded", () => {
         
         const isGiver = (data.giver.id === myPlayerId);
 
-        // Lógica de exibição à prova de falhas
+        // Lógica de exibição final e à prova de falhas
         if (isGiver) {
-            giverView.classList.remove('hidden');
-            guesserView.classList.add('hidden');
-            reportBtn.classList.add('hidden');
+            giverContainer.classList.remove('hidden');
+            guesserContainer.classList.add('hidden');
         } else {
-            giverView.classList.add('hidden');
-            guesserView.classList.remove('hidden');
-            reportBtn.classList.remove('hidden');
+            giverContainer.classList.add('hidden');
+            guesserContainer.classList.remove('hidden');
         }
         
         giverNameForGuesser.textContent = data.giver.name;
