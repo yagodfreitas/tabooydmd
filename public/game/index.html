@@ -40,6 +40,17 @@
                 <ul id="player-list"></ul>
             </div>
             <button id="start-game-btn" class="hidden">Iniciar Jogo</button>
+            
+            <!-- SEÇÃO DE REGRAS NO LOBBY -->
+            <div class="rules-container">
+                <h4>Regras do Jogo</h4>
+                <ul>
+                    <li><strong>Objetivo:</strong> Faça seu time adivinhar a palavra no topo do card.</li>
+                    <li><strong>Proibido:</strong> Dizer qualquer uma das 5 palavras tabu listadas. Também é proibido usar gestos, mímicas ou sons.</li>
+                    <li><strong>Pontos (Acerto):</strong> Quem adivinha ganha <strong>4 pontos</strong>. Quem dá a dica ganha <strong>1 ponto</strong>.</li>
+                    <li><strong>Pontos (Denúncia):</strong> Após o turno, cada carta acertada é avaliada. Se a maioria dos jogadores denunciar, quem deu a dica perde 1 ponto.</li>
+                </ul>
+            </div>
         </div>
 
         <div id="game-screen" class="screen">
@@ -67,7 +78,6 @@
                             <p class="card-instruction">Palavras Tabu:</p>
                             <ul id="taboo-list"></ul>
                         </div>
-                        <!-- NOVO BOTÃO DE PULAR -->
                         <button id="skip-card-btn" class="skip-button">Pular Carta</button>
                     </div>
                     <div id="guesser-view">
@@ -78,6 +88,15 @@
                                 <input id="guess-input" type="text" placeholder="Seu palpite..." autocomplete="off" required />
                                 <button type="submit">Enviar</button>
                             </form>
+                        </div>
+                         <!-- SEÇÃO DE REGRAS PARA QUEM ADIVINHA -->
+                        <div class="rules-container">
+                            <h4>Regras para Adivinhar</h4>
+                            <ul>
+                                <li>Digite seus palpites no campo acima.</li>
+                                <li>Se o jogador da vez quebrar uma regra (gestos, sons, palavras tabu), use o botão <strong>🚨 Denunciar</strong>.</li>
+                                <li>A denúncia invalida a carta atual se a maioria dos jogadores concordar.</li>
+                            </ul>
                         </div>
                     </div>
                     <button id="report-btn" class="report-button hidden">
