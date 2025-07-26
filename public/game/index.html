@@ -12,6 +12,28 @@
         <p id="notification-text"></p>
     </div>
 
+    <!-- ===== NOVA TELA DE AVALIAÇÃO (OVERLAY) ===== -->
+    <div id="review-overlay" class="overlay-screen hidden">
+        <div class="review-container">
+            <h2 id="review-title">Fase de Avaliação</h2>
+            <div id="review-card-area" class="hidden">
+                <div class="review-timer-bar">
+                    <div id="review-timer-progress"></div>
+                </div>
+                <p>Avaliando a palavra acertada por <strong id="review-guesser-name"></strong>:</p>
+                <div class="card">
+                    <h3 id="review-target-word">PALAVRA</h3>
+                    <ul id="review-taboo-list"></ul>
+                </div>
+                <button id="review-report-btn">🚨 Denunciar esta carta</button>
+            </div>
+            <div id="review-result-area">
+                 <p id="review-result-text"></p>
+            </div>
+        </div>
+    </div>
+    <!-- ============================================= -->
+
     <div id="container" class="container">
         <!-- TELA DE LOBBY (SALA DE ESPERA) -->
         <div id="lobby-screen" class="screen active">
@@ -45,7 +67,6 @@
 
                 <!-- Coluna Central: Ação -->
                 <div class="game-center">
-                    <!-- Visão do Jogador da Vez (Giver) -->
                     <div id="giver-view" class="hidden">
                         <div class="card">
                             <p class="card-instruction">Sua palavra é:</p>
@@ -54,7 +75,6 @@
                             <ul id="taboo-list"></ul>
                         </div>
                     </div>
-                    <!-- Visão dos Adivinhadores (Guesser) -->
                     <div id="guesser-view" class="hidden">
                         <div class="guesser-box">
                             <h3>Adivinhe a Palavra!</h3>
@@ -65,7 +85,6 @@
                             </form>
                         </div>
                     </div>
-                     <!-- Botão de Denúncia -->
                     <button id="report-btn" class="report-button hidden">
                         🚨 Denunciar (<span id="report-count">0</span>)
                     </button>
