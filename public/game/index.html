@@ -23,6 +23,12 @@
                     <h3 id="review-target-word">PALAVRA</h3>
                     <ul id="review-taboo-list"></ul>
                 </div>
+                <!-- Regra simplificada para a fase de avaliação -->
+                <div class="rules-container rules-review">
+                    <ul>
+                        <li><strong>Pontos (Denúncia):</strong> Se a maioria denunciar, quem deu a dica perde 1 ponto.</li>
+                    </ul>
+                </div>
                 <button id="review-report-btn">🚨 Denunciar esta carta</button>
             </div>
             <div id="review-result-area">
@@ -37,11 +43,12 @@
             <p>Aguardando jogadores... O host pode iniciar a partida com no mínimo 3 pessoas.</p>
             <div id="player-list-container">
                 <h3>Jogadores na sala:</h3>
-                <ul id="player-list"></ul>
+                <ul id="player-list">
+                    <!-- Jogadores serão inseridos aqui pelo JS -->
+                </ul>
             </div>
             <button id="start-game-btn" class="hidden">Iniciar Jogo</button>
             
-            <!-- SEÇÃO DE REGRAS NO LOBBY -->
             <div class="rules-container">
                 <h4>Regras do Jogo</h4>
                 <ul>
@@ -89,13 +96,11 @@
                                 <button type="submit">Enviar</button>
                             </form>
                         </div>
-                         <!-- SEÇÃO DE REGRAS PARA QUEM ADIVINHA -->
-                        <div class="rules-container">
-                            <h4>Regras para Adivinhar</h4>
+                        <!-- Regras simplificadas para quem está adivinhando -->
+                        <div class="rules-container rules-game">
                             <ul>
-                                <li>Digite seus palpites no campo acima.</li>
-                                <li>Se o jogador da vez quebrar uma regra (gestos, sons, palavras tabu), use o botão <strong>🚨 Denunciar</strong>.</li>
-                                <li>A denúncia invalida a carta atual se a maioria dos jogadores concordar.</li>
+                                <li><strong>Proibido:</strong> O jogador da vez não pode dizer as palavras tabu, usar gestos, mímicas ou sons.</li>
+                                <li><strong>Denúncia:</strong> Se uma regra for quebrada, use o botão <strong>🚨 Denunciar</strong> para anular a carta.</li>
                             </ul>
                         </div>
                     </div>
