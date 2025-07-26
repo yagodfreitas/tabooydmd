@@ -43,7 +43,7 @@ document.addEventListener("DOMContentLoaded", () => {
     let myPlayerId = null;
     let myPlayerIsHost = false;
     let currentGiverId = null;
-    let lobbyDataBuffer = null; // Buffer para resolver a corrida de eventos
+    let lobbyDataBuffer = null;
     const REVIEW_DURATION_SECONDS = 10;
 
     // --- FUNÇÕES DE UI ---
@@ -62,7 +62,6 @@ document.addEventListener("DOMContentLoaded", () => {
 
     function updateLobby(players) {
         if (!myPlayerId) {
-            // Se ainda não sabemos nosso ID, guardamos os dados para depois.
             lobbyDataBuffer = players;
             return;
         }
@@ -143,10 +142,9 @@ document.addEventListener("DOMContentLoaded", () => {
 
     socket.on('welcome', (data) => {
         myPlayerId = data.id;
-        // Agora que sabemos nosso ID, processamos os dados do lobby se eles chegaram antes.
         if (lobbyDataBuffer) {
             updateLobby(lobbyDataBuffer);
-            lobbyDataBuffer = null; // Limpa o buffer
+            lobbyDataBuffer = null;
         }
     });
 
@@ -168,16 +166,20 @@ document.addEventListener("DOMContentLoaded", () => {
         currentGiverName.textContent = data.giver.name;
         guessLog.innerHTML = '';
         
-        guesserView.classList.remove('hidden');
-        giverView.classList.add('hidden');
+        const isGiver = (data.giver.id === myPlayerId);
 
-        const isGiver = data.giver.id === myPlayerId;
         if (isGiver) {
-            guesserView.classList.add('hidden');
             giverView.classList.remove('hidden');
+            guesserView.classList.add('hidden');
+        } else {
+            giverView.classList.add('hidden');
+            guesserView.classList.remove('hidden');
         }
         
-        reportBtn.classList.toggle('hidden', isGiver);
+        // CORREÇÃO: Controla a visibilidade dos botões de ação com base no papel do jogador.
+        reportBtn.classList.toggle('hidden', isGiver); // Mostra para adivinhadores, esconde para o giver.
+        skipCardBtn.classList.toggle('hidden', !isGiver); // Mostra para o giver, esconde para adivinhadores.
+        
         giverNameForGuesser.textContent = data.giver.name;
     });
 
