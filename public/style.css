@@ -7,6 +7,7 @@
     --accent-color: #e94560;
     --text-color: #dcdcdc;
     --highlight-color: #fca311;
+    --skip-color: #3b82f6;
 }
 
 body {
@@ -69,8 +70,8 @@ button {
     margin-right: auto;
     transition: background-color 0.2s, transform 0.2s;
 }
-button:hover {
-    background-color: #ff637f;
+button:hover:not(:disabled) {
+    filter: brightness(1.1);
     transform: translateY(-2px);
 }
 button:disabled {
@@ -229,6 +230,7 @@ input:focus {
 }
 .guess-log-success { color: #50fa7b; }
 .guess-log-invalid { color: #ff5555; }
+.guess-log-skipped { color: #fca311; font-style: italic; }
 
 .report-button {
     background-color: #3e161f;
@@ -236,11 +238,9 @@ input:focus {
     margin-top: 1rem;
     max-width: none;
 }
-.report-button:hover:not(:disabled) { background-color: #5a212d; }
-.report-button:disabled {
-    opacity: 0.5;
-    cursor: not-allowed;
-    display: block;
+.skip-button {
+    background-color: var(--skip-color);
+    max-width: none;
 }
 
 #podium-list .podium-1 { border-left: 5px solid #ffd700; }
@@ -264,7 +264,6 @@ input:focus {
 .notification.error { background-color: #c23b22; }
 .notification.success { background-color: #4caf50; }
 
-/* ===== ESTILOS PARA A TELA DE AVALIAÇÃO ===== */
 .overlay-screen {
     position: fixed;
     top: 0;
@@ -306,13 +305,10 @@ input:focus {
     height: 100%;
     background-color: var(--highlight-color);
     border-radius: 5px;
-    transition: width 5s linear;
+    /* A transição será definida via JS */
 }
 #review-report-btn {
     background-color: #c23b22;
-}
-#review-report-btn:hover:not(:disabled) {
-    background-color: #d9534f;
 }
 #review-result-area {
     font-size: 1.2rem;
