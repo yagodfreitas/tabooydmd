@@ -113,6 +113,14 @@ function startNewTurn() {
         return;
     }
 
+    // CORREÇÃO: Verifica se ainda há cartas ANTES de começar o turno.
+    if (gameState.usedCards.size >= gameState.cards.length) {
+        console.log("Não há mais cartas para o próximo turno. Fim de jogo.");
+        io.emit('gameError', 'Todas as cartas do baralho foram usadas!');
+        endGame();
+        return;
+    }
+
     gameState.currentGiverId = gameState.playerOrder[gameState.currentTurnIndex];
     const giver = gameState.players[gameState.currentGiverId];
     
@@ -125,11 +133,6 @@ function startNewTurn() {
     console.log(`Novo turno: ${giver.name} (Rodada ${gameState.currentRound})`);
     
     pickNewCard();
-    if (!gameState.currentCard) {
-        console.log("Todas as cartas foram usadas!");
-        endGame();
-        return;
-    }
     
     gameState.timeLeft = TURN_DURATION;
     gameState.liveReports.clear();
@@ -148,9 +151,7 @@ function startNewTurn() {
 
 function pickNewCard() {
     if (gameState.usedCards.size >= gameState.cards.length) {
-        gameState.currentCard = null;
-        io.emit('gameError', 'Todas as cartas do baralho foram usadas!');
-        endGame();
+        gameState.currentCard = null; // Sinaliza que não há mais cartas
         return;
     }
     let newCardIndex;
@@ -329,9 +330,16 @@ io.on('connection', (socket) => {
             });
             io.emit('scoreUpdate', Object.values(gameState.players));
             
-            setTimeout(() => {
-                if(gameState.timeLeft > 0) pickNewCard();
-            }, 2000);
+            // CORREÇÃO: Verifica se ainda há cartas DEPOIS de um acerto.
+            if (gameState.usedCards.size >= gameState.cards.length) {
+                console.log("Última carta do baralho foi usada. Finalizando turno.");
+                if (gameState.turnTimer) clearInterval(gameState.turnTimer);
+                startReviewPhase();
+            } else {
+                setTimeout(() => {
+                    if(gameState.timeLeft > 0) pickNewCard();
+                }, 2000);
+            }
         }
     });
     
