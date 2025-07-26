@@ -20,7 +20,7 @@ const REVIEW_DURATION = 10000; // 10 segundos
 const getInitialGameState = () => ({
     players: {},
     playerOrder: [],
-    cards: gameState ? gameState.cards : [],
+    cards: [], // Corrigido: Inicializa como um array vazio para evitar erro de referência.
     usedCards: new Set(),
     gameStarted: false,
     currentTurnIndex: 0,
@@ -45,7 +45,7 @@ let gameState = getInitialGameState();
 function loadCards() {
     try {
         const cardsData = fs.readFileSync(path.join(__dirname, 'assets/cards.json'));
-        gameState.cards = JSON.parse(cardsData);
+        gameState.cards = JSON.parse(cardsData); // Carrega as cartas para o estado do jogo.
         console.log(`Sucesso: ${gameState.cards.length} cartas carregadas.`);
     } catch (error) {
         console.error("Erro ao carregar assets/cards.json:", error);
@@ -66,11 +66,14 @@ function resetGame() {
     if (gameState.reviewTimer) clearTimeout(gameState.reviewTimer);
     
     const players = Object.values(gameState.players);
+    const loadedCards = gameState.cards; // Salva as cartas carregadas.
     players.forEach(p => p.score = 0);
     
+    // Reseta o estado, mas preserva os jogadores e as cartas carregadas.
     gameState = {
         ...getInitialGameState(),
         players: gameState.players,
+        cards: loadedCards,
     };
     
     io.emit('gameReset');
