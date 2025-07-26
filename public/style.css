@@ -30,6 +30,8 @@ body {
     box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
     padding: 2rem;
     border: 2px solid var(--secondary-color);
+    position: relative;
+    z-index: 1;
 }
 
 h1, h2, h3 {
@@ -44,7 +46,6 @@ p {
     color: #a9a9b3;
 }
 
-/* Telas */
 .screen { display: none; }
 .screen.active { display: block; animation: fadeIn 0.5s ease-in-out; }
 @keyframes fadeIn {
@@ -52,7 +53,6 @@ p {
     to { opacity: 1; transform: translateY(0); }
 }
 
-/* Botões e Inputs */
 button {
     background-color: var(--accent-color);
     color: white;
@@ -69,15 +69,16 @@ button {
     margin-right: auto;
     transition: background-color 0.2s, transform 0.2s;
 }
-
 button:hover {
     background-color: #ff637f;
     transform: translateY(-2px);
 }
-
-button:disabled, button.hidden {
-    display: none;
+button:disabled {
+    background-color: #555;
+    cursor: not-allowed;
+    transform: none;
 }
+button.hidden { display: none; }
 
 input[type="text"] {
     width: 100%;
@@ -96,7 +97,6 @@ input:focus {
     border-color: var(--accent-color);
 }
 
-/* Lobby */
 #player-list-container {
     background-color: var(--secondary-color);
     border-radius: 8px;
@@ -104,10 +104,7 @@ input:focus {
     margin: 2rem auto;
     max-width: 400px;
 }
-#player-list {
-    list-style: none;
-    padding: 0;
-}
+#player-list { list-style: none; padding: 0; }
 #player-list li {
     background-color: var(--primary-color);
     padding: 0.75rem;
@@ -127,7 +124,6 @@ input:focus {
     border-radius: 10px;
 }
 
-/* Jogo */
 .game-header {
     display: flex;
     justify-content: space-between;
@@ -155,7 +151,6 @@ input:focus {
     margin-bottom: 1.5rem;
     font-size: 1.1rem;
 }
-
 .game-main {
     display: grid;
     grid-template-columns: 1fr 2fr 1fr;
@@ -166,10 +161,7 @@ input:focus {
     border-radius: 8px;
     padding: 1.5rem;
 }
-#scoreboard, #podium-list {
-    list-style: none;
-    padding: 0;
-}
+#scoreboard, #podium-list { list-style: none; padding: 0; }
 #scoreboard li, #podium-list li {
     display: flex;
     justify-content: space-between;
@@ -183,7 +175,6 @@ input:focus {
     color: var(--highlight-color);
 }
 
-/* Carta do Jogo */
 .card {
     background-color: #e9e9e9;
     color: #333;
@@ -197,14 +188,14 @@ input:focus {
     font-size: 0.9rem;
     margin-bottom: 0.5rem;
 }
-#target-word {
+#target-word, #review-target-word {
     font-size: 2.5rem;
     font-weight: 700;
     color: var(--bg-color);
     margin: 0.5rem 0 1.5rem 0;
     letter-spacing: 2px;
 }
-#taboo-list {
+#taboo-list, #review-taboo-list {
     list-style: none;
     padding: 0;
     display: flex;
@@ -212,7 +203,7 @@ input:focus {
     justify-content: center;
     gap: 0.5rem;
 }
-#taboo-list li {
+#taboo-list li, #review-taboo-list li {
     background-color: var(--accent-color);
     color: white;
     padding: 0.5rem 1rem;
@@ -220,15 +211,9 @@ input:focus {
     font-weight: 600;
 }
 
-/* Visão do Adivinhador */
-.guesser-box {
-    text-align: center;
-}
-.guesser-box h3 {
-    color: var(--text-color);
-}
+.guesser-box { text-align: center; }
+.guesser-box h3 { color: var(--text-color); }
 
-/* Log de Palpites */
 #guess-log {
     height: 300px;
     overflow-y: auto;
@@ -245,28 +230,23 @@ input:focus {
 .guess-log-success { color: #50fa7b; }
 .guess-log-invalid { color: #ff5555; }
 
-/* Botão de Denúncia */
 .report-button {
     background-color: #3e161f;
     border: 2px solid var(--accent-color);
     margin-top: 1rem;
     max-width: none;
 }
-.report-button:hover {
-    background-color: #5a212d;
-}
+.report-button:hover:not(:disabled) { background-color: #5a212d; }
 .report-button:disabled {
     opacity: 0.5;
     cursor: not-allowed;
-    display: block; /* Sobrescreve o display:none do :disabled geral */
+    display: block;
 }
 
-/* Pódio */
 #podium-list .podium-1 { border-left: 5px solid #ffd700; }
 #podium-list .podium-2 { border-left: 5px solid #c0c0c0; }
 #podium-list .podium-3 { border-left: 5px solid #cd7f32; }
 
-/* Notificação */
 .notification {
     position: fixed;
     top: -100px;
@@ -284,18 +264,73 @@ input:focus {
 .notification.error { background-color: #c23b22; }
 .notification.success { background-color: #4caf50; }
 
-/* Responsividade */
+/* ===== ESTILOS PARA A TELA DE AVALIAÇÃO ===== */
+.overlay-screen {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background-color: rgba(0, 0, 0, 0.85);
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    z-index: 999;
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.3s ease-in-out;
+}
+.overlay-screen:not(.hidden) {
+    opacity: 1;
+    pointer-events: all;
+}
+.review-container {
+    background-color: var(--primary-color);
+    padding: 2rem;
+    border-radius: 12px;
+    width: 90%;
+    max-width: 600px;
+    text-align: center;
+    border: 2px solid var(--accent-color);
+}
+.review-timer-bar {
+    width: 100%;
+    height: 10px;
+    background-color: var(--secondary-color);
+    border-radius: 5px;
+    margin-bottom: 1rem;
+    overflow: hidden;
+}
+#review-timer-progress {
+    width: 100%;
+    height: 100%;
+    background-color: var(--highlight-color);
+    border-radius: 5px;
+    transition: width 5s linear;
+}
+#review-report-btn {
+    background-color: #c23b22;
+}
+#review-report-btn:hover:not(:disabled) {
+    background-color: #d9534f;
+}
+#review-result-area {
+    font-size: 1.2rem;
+    font-weight: bold;
+    min-height: 50px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+#review-result-text.validated { color: #50fa7b; }
+#review-result-text.invalidated { color: #ff5555; }
+
+
 @media (max-width: 900px) {
     .game-main {
         grid-template-columns: 1fr;
     }
-    .game-sidebar {
-        order: 3; /* Placar e palpites vão para o final */
-    }
-    .game-center {
-        order: 1;
-    }
-    #guess-log {
-        height: 150px;
-    }
+    .game-sidebar { order: 3; }
+    .game-center { order: 1; }
+    #guess-log { height: 150px; }
 }
