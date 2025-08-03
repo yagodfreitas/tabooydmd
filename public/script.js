@@ -2,11 +2,7 @@ document.addEventListener("DOMContentLoaded", () => {
     const socket = io();
 
     // --- ELEMENTOS DO DOM ---
-    const screens = {
-        lobby: document.getElementById('lobby-screen'),
-        game: document.getElementById('game-screen'),
-        podium: document.getElementById('podium-screen'),
-    };
+    const screens = { lobby: document.getElementById('lobby-screen'), game: document.getElementById('game-screen'), podium: document.getElementById('podium-screen') };
     const notification = document.getElementById('notification');
     const notificationText = document.getElementById('notification-text');
     const playerList = document.getElementById('player-list');
@@ -15,23 +11,16 @@ document.addEventListener("DOMContentLoaded", () => {
     const timerDisplay = document.getElementById('timer');
     const currentGiverName = document.getElementById('current-giver-name');
     const scoreboard = document.getElementById('scoreboard');
-    
-    // Painéis principais
     const giverPanel = document.getElementById('giver-panel');
     const guesserPanel = document.getElementById('guesser-panel');
-
-    // Elementos do Giver
     const targetWord = document.getElementById('target-word');
     const tabooWords = document.getElementById('taboo-list');
     const skipCardBtn = document.getElementById('skip-card-btn');
-    
-    // Elementos do Guesser
     const giverNameForGuesser = document.getElementById('giver-name-for-guesser');
     const guessForm = document.getElementById('guess-form');
     const guessInput = document.getElementById('guess-input');
     const reportBtn = document.getElementById('report-btn');
     const reportCount = document.getElementById('report-count');
-    
     const guessLog = document.getElementById('guess-log');
     const podiumList = document.getElementById('podium-list');
     const playAgainBtn = document.getElementById('play-again-btn');
@@ -47,198 +36,105 @@ document.addEventListener("DOMContentLoaded", () => {
     const reviewResultText = document.getElementById('review-result-text');
 
     let myPlayerId = null;
-    let myPlayerIsHost = false;
-    let currentGiverId = null;
-    let lobbyDataBuffer = null;
     const REVIEW_DURATION_SECONDS = 10;
 
-    function showScreen(screenId) {
-        Object.values(screens).forEach(screen => screen.classList.remove('active'));
-        if (screens[screenId]) screens[screenId].classList.add('active');
-    }
+    // --- FUNÇÃO DE RENDERIZAÇÃO CENTRAL ---
+    function renderGameState(state) {
+        if (!myPlayerId) return;
 
-    function showNotification(message, type = 'error') {
-        notificationText.textContent = message;
-        notification.className = `notification show ${type}`;
-        setTimeout(() => {
-            notification.classList.remove('show');
-        }, 3000);
-    }
+        // 1. Controla qual tela principal é exibida
+        Object.values(screens).forEach(s => s.classList.remove('active'));
+        if (state.gamePhase === 'lobby') screens.lobby.classList.add('active');
+        else if (state.gamePhase === 'podium') screens.podium.classList.add('active');
+        else screens.game.classList.add('active');
 
-    function updateLobby(players) {
-        if (!myPlayerId) {
-            lobbyDataBuffer = players;
-            return;
-        }
-        const me = players.find(p => p.id === myPlayerId);
-        myPlayerIsHost = me ? me.isHost : false;
-        playerList.innerHTML = players.map(p => `<li><span>${p.name}</span>${p.isHost ? '<span class="host-tag">HOST</span>' : ''}</li>`).join('');
-        startGameBtn.disabled = players.length < 3;
+        // 2. Atualiza o Lobby
+        const me = state.players.find(p => p.id === myPlayerId);
+        const myPlayerIsHost = me ? me.isHost : false;
+        playerList.innerHTML = state.players.map(p => `<li><span>${p.name}</span>${p.isHost ? '<span class="host-tag">HOST</span>' : ''}</li>`).join('');
+        startGameBtn.disabled = state.players.length < 3;
         startGameBtn.classList.toggle('hidden', !myPlayerIsHost);
-    }
 
-    function updateScoreboard(players) {
-        scoreboard.innerHTML = players.sort((a, b) => b.score - a.score).map(p => `<li><span>${p.name}</span> <span class="score">${p.score}</span></li>`).join('');
-    }
+        // 3. Atualiza a tela de Jogo
+        roundNumber.textContent = state.currentRound;
+        timerDisplay.textContent = state.timeLeft;
+        const giver = state.players.find(p => p.id === state.currentGiverId);
+        currentGiverName.textContent = giver ? giver.name : '...';
+        
+        scoreboard.innerHTML = [...state.players].sort((a,b) => b.score - a.score).map(p => `<li><span>${p.name}</span> <span class="score">${p.score}</span></li>`).join('');
 
-    function addGuessToLog(data) {
-        const logEntry = document.createElement('p');
-        let content = '';
-        switch(data.type) {
-            case 'success':
-                content = `<strong class="guess-log-success">🎯 ${data.guesserName} acertou! (+4 pts)</strong><br><small>Dica de: ${data.giverName} (+1 pt)</small>`;
-                break;
-            case 'invalid':
-                content = `<strong class="guess-log-invalid">🚨 Palavra "${data.word}" foi invalidada por denúncias!</strong>`;
-                break;
-            case 'skipped':
-                content = `<strong class="guess-log-skipped">⏩ A palavra "${data.word}" foi pulada!</strong>`;
-                break;
-            default:
-                content = `<strong>${data.name}:</strong> ${data.text}`;
+        const isGiver = myPlayerId === state.currentGiverId;
+        giverPanel.classList.toggle('hidden', !isGiver);
+        guesserPanel.classList.toggle('hidden', isGiver);
+        
+        if (isGiver && state.currentCard) {
+            targetWord.textContent = state.currentCard.palavraAlvo;
+            tabooWords.innerHTML = state.currentCard.tabus.map(t => `<li>${t}</li>`).join('');
         }
-        logEntry.innerHTML = content;
-        guessLog.appendChild(logEntry);
-        guessLog.scrollTop = guessLog.scrollHeight;
+        giverNameForGuesser.textContent = giver ? giver.name : '...';
+
+        // 4. Atualiza a fase de Avaliação
+        reviewOverlay.classList.toggle('hidden', state.gamePhase !== 'review');
+        if (state.gamePhase === 'review') {
+            if (state.currentReviewCard) {
+                reviewCardArea.classList.remove('hidden');
+                reviewResultArea.classList.add('hidden');
+                const reviewGiver = state.players.find(p => p.id === state.currentReviewCard.giverId);
+                const reviewGuesser = state.players.find(p => p.id === state.currentReviewCard.guesserId);
+                reviewGuesserName.textContent = reviewGuesser ? reviewGuesser.name : '?';
+                reviewTargetWord.textContent = state.currentReviewCard.card.palavraAlvo;
+                reviewTabooList.innerHTML = state.currentReviewCard.card.tabus.map(t => `<li>${t}</li>`).join('');
+                reviewReportBtn.disabled = (myPlayerId === (reviewGiver ? reviewGiver.id : null));
+            } else if (state.reviewResultData) {
+                reviewCardArea.classList.add('hidden');
+
+                reviewResultArea.classList.remove('hidden');
+                if (state.reviewResultData.invalidated) {
+                    reviewResultText.textContent = `Carta "${state.reviewResultData.word}" invalidada! (${state.reviewResultData.reports}/${state.reviewResultData.required} votos).`;
+                    reviewResultText.className = 'invalidated';
+                } else {
+                    reviewResultText.textContent = `Carta "${state.reviewResultData.word}" validada. (${state.reviewResultData.reports}/${state.reviewResultData.required} votos)`;
+                    reviewResultText.className = 'validated';
+                }
+            }
+        }
+
+        // 5. Atualiza o Pódio
+        if (state.gamePhase === 'podium') {
+            playAgainBtn.classList.toggle('hidden', !myPlayerIsHost);
+            const medals = ['🥇', '🥈', '🥉'];
+            podiumList.innerHTML = state.players.map((p, i) => `<li class="podium-${i + 1}"><span>${medals[i] || '🔹'} ${p.name}</span><span class="score">${p.score} pts</span></li>`).join('');
+        }
     }
 
+    // --- EVENT HANDLERS ---
     startGameBtn.addEventListener('click', () => socket.emit('startGame'));
     playAgainBtn.addEventListener('click', () => socket.emit('playAgain'));
-    reviewReportBtn.addEventListener('click', () => {
-        socket.emit('reportReview');
-        reviewReportBtn.disabled = true;
-    });
+    reviewReportBtn.addEventListener('click', () => { socket.emit('reportReview'); reviewReportBtn.disabled = true; });
     skipCardBtn.addEventListener('click', () => socket.emit('skipCard'));
     guessForm.addEventListener('submit', (e) => {
         e.preventDefault();
         const guess = guessInput.value.trim();
-        if (guess) {
-            socket.emit('guess', guess);
-            guessInput.value = '';
-        }
+        if (guess) { socket.emit('guess', guess); guessInput.value = ''; }
     });
-    reportBtn.addEventListener('click', () => {
-        socket.emit('reportLive');
-        reportBtn.disabled = true;
-    });
+    reportBtn.addEventListener('click', () => { socket.emit('reportLive'); reportBtn.disabled = true; });
 
+    // --- LÓGICA DE CONEXÃO E SOCKETS ---
     const urlParams = new URLSearchParams(window.location.search);
     const playerName = urlParams.get("name");
-    if (playerName) {
-        socket.emit("joinLobby", playerName);
-    } else {
-        window.location.href = '/';
-    }
+    if (playerName) { socket.emit("joinLobby", playerName); } 
+    else { window.location.href = '/'; }
 
-    socket.on('welcome', (data) => {
-        myPlayerId = data.id;
-        if (lobbyDataBuffer) {
-            updateLobby(lobbyDataBuffer);
-            lobbyDataBuffer = null;
-        }
-    });
-
-    socket.on('lobbyUpdate', updateLobby);
-    socket.on('nameError', (message) => {
-        alert(message);
-        window.location.href = '/';
-    });
+    socket.on('welcome', (data) => { myPlayerId = data.id; });
+    socket.on('nameError', (message) => { alert(message); window.location.href = '/'; });
     socket.on('gameError', (message) => showNotification(message, 'error'));
 
-    socket.on('newTurn', (data) => {
-        showScreen('game');
-        currentGiverId = data.giver.id;
-        roundNumber.textContent = data.round;
-        timerDisplay.textContent = data.timeLeft;
-        currentGiverName.textContent = data.giver.name;
-        guessLog.innerHTML = '';
-        
-        const isGiver = (data.giver.id === myPlayerId);
+    // OUVINTE PRINCIPAL: Recebe o estado completo do jogo e renderiza a tela
+    socket.on('syncState', renderGameState);
 
-        // Abordagem à prova de falhas:
-        // 1. Esconde ambos os painéis para garantir um estado limpo.
-        giverPanel.classList.add('hidden');
-        guesserPanel.classList.add('hidden');
-        
-        // 2. Mostra APENAS o painel correto.
-        if (isGiver) {
-            giverPanel.classList.remove('hidden');
-        } else {
-            guesserPanel.classList.remove('hidden');
-        }
-        
-        giverNameForGuesser.textContent = data.giver.name;
-    });
-
-    socket.on('cardUpdate', (card) => {
-        targetWord.textContent = card.palavraAlvo;
-        tabooWords.innerHTML = card.tabus.map(t => `<li>${t}</li>`).join('');
-    });
-    
-    socket.on('newCardInPlay', () => {
-        reportBtn.disabled = false;
-        reportCount.textContent = '0';
-    });
-
-    socket.on('cardSkipped', (data) => addGuessToLog({ ...data, type: 'skipped' }));
-    socket.on('timerUpdate', (time) => timerDisplay.textContent = time);
-    socket.on('scoreUpdate', updateScoreboard);
+    // OUVINTES PARA EVENTOS PONTUAIS (NOTIFICAÇÕES)
     socket.on('guessBroadcast', (data) => addGuessToLog(data));
     socket.on('cardSuccess', (data) => addGuessToLog({ ...data, type: 'success' }));
     socket.on('cardInvalidated', (data) => addGuessToLog({ ...data, type: 'invalid' }));
-    socket.on('reportCount', (data) => {
-        reportCount.textContent = `${data.count}/${data.required}`;
-    });
-
-    socket.on('startReview', (data) => {
-        reviewOverlay.classList.remove('hidden');
-        reviewTitle.textContent = `Fase de Avaliação (${data.totalCards} ${data.totalCards > 1 ? 'cartas' : 'carta'})`;
-        reviewCardArea.classList.add('hidden');
-        reviewResultArea.classList.remove('hidden');
-        reviewResultText.textContent = "Iniciando avaliação...";
-        reviewResultText.className = '';
-    });
-
-    socket.on('showReviewCard', (data) => {
-        reviewCardArea.classList.remove('hidden');
-        reviewResultArea.classList.add('hidden');
-        reviewGuesserName.textContent = data.guesserName;
-        reviewTargetWord.textContent = data.card.palavraAlvo;
-        reviewTabooList.innerHTML = data.card.tabus.map(t => `<li>${t}</li>`).join('');
-        reviewReportBtn.disabled = (myPlayerId === currentGiverId);
-        reviewTimerProgress.style.transition = 'none';
-        reviewTimerProgress.style.width = '100%';
-        setTimeout(() => {
-            reviewTimerProgress.style.transition = `width ${REVIEW_DURATION_SECONDS}s linear`;
-            reviewTimerProgress.style.width = '0%';
-        }, 100);
-    });
-
-    socket.on('reviewResult', (data) => {
-        reviewCardArea.classList.add('hidden');
-        reviewResultArea.classList.remove('hidden');
-        if (data.invalidated) {
-            reviewResultText.textContent = `Carta "${data.word}" invalidada! (${data.reports}/${data.required} votos). -1 pt para o giver.`;
-            reviewResultText.className = 'invalidated';
-        } else {
-            reviewResultText.textContent = `Carta "${data.word}" validada. (${data.reports}/${data.required} votos)`;
-            reviewResultText.className = 'validated';
-        }
-    });
-
-    socket.on('endReview', () => {
-        reviewOverlay.classList.add('hidden');
-    });
-
-    socket.on('gameOver', (scores) => {
-        showScreen('podium');
-        playAgainBtn.classList.toggle('hidden', !myPlayerIsHost);
-        const medals = ['🥇', '🥈', '🥉'];
-        podiumList.innerHTML = scores.map((p, i) => `<li class="podium-${i + 1}"><span>${medals[i] || '🔹'} ${p.name}</span><span class="score">${p.score} pts</span></li>`).join('');
-    });
-
-    socket.on('gameReset', () => {
-        showScreen('lobby');
-        reviewOverlay.classList.add('hidden');
-    });
+    socket.on('cardSkipped', (data) => addGuessToLog({ ...data, type: 'skipped' }));
 });
