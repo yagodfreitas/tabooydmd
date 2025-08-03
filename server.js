@@ -21,6 +21,7 @@ const getInitialGameState = () => ({
     cards: [],
     usedCards: new Set(),
     gamePhase: 'lobby', // lobby, turn, review, podium
+    guessLog: [], // << NOVO: Registo de palpites faz parte do estado
     currentTurnIndex: 0,
     currentRound: 1,
     maxRounds: 3,
@@ -36,6 +37,8 @@ const getInitialGameState = () => ({
 });
 
 let gameState = getInitialGameState();
+let turnTimer = null; // Mover o timer para o escopo global do servidor
+let reviewTimer = null;
 
 function loadCards() {
     try {
@@ -86,16 +89,15 @@ function moveToNextTurn() {
 
 function startNewTurn() {
     gameState.turnSuccesses = [];
+    gameState.guessLog = []; // Limpa o registo de palpites para o novo turno
     if (gameState.currentTurnIndex >= gameState.playerOrder.length) {
         gameState.currentTurnIndex = 0;
         gameState.currentRound++;
     }
-    if (gameState.currentRound > gameState.maxRounds) {
-        endGame();
-        return;
-    }
-    if (gameState.usedCards.size >= gameState.cards.length) {
-        io.emit('gameError', 'Todas as cartas do baralho foram usadas!');
+    if (gameState.currentRound > gameState.maxRounds || gameState.usedCards.size >= gameState.cards.length) {
+        if (gameState.usedCards.size >= gameState.cards.length) {
+            io.emit('gameError', 'Todas as cartas do baralho foram usadas!');
+        }
         endGame();
         return;
     }
@@ -111,6 +113,7 @@ function startNewTurn() {
     gameState.liveReports.clear();
     gameState.wordGuessedInTurn = false;
     gameState.gamePhase = 'turn';
+    startTurnTimer(); // << CORREÇÃO: Reinicia o temporizador a cada novo turno
 }
 
 function pickNewCard() {
@@ -126,10 +129,8 @@ function pickNewCard() {
     gameState.currentCard = gameState.cards[newCardIndex];
     gameState.wordGuessedInTurn = false;
     gameState.liveReports.clear();
-    io.emit('newCardInPlay');
 }
 
-let turnTimer = null;
 function startTurnTimer() {
     if (turnTimer) clearInterval(turnTimer);
     turnTimer = setInterval(() => {
@@ -145,6 +146,7 @@ function startTurnTimer() {
 }
 
 function startReviewPhase() {
+    if (turnTimer) clearInterval(turnTimer);
     console.log("A iniciar fase de avaliação...");
     gameState.gamePhase = 'review';
     if (gameState.turnSuccesses.length === 0) {
@@ -154,7 +156,6 @@ function startReviewPhase() {
     reviewNextCard();
 }
 
-let reviewTimer = null;
 function reviewNextCard() {
     if (reviewTimer) clearTimeout(reviewTimer);
     if (gameState.turnSuccesses.length === 0) {
@@ -193,6 +194,8 @@ function endReviewPhase() {
 }
 
 function endGame() {
+    if (turnTimer) clearInterval(turnTimer);
+    if (reviewTimer) clearTimeout(reviewTimer);
     console.log("Fim de jogo!");
     gameState.gamePhase = 'podium';
 }
@@ -215,7 +218,6 @@ io.on('connection', (socket) => {
         const player = gameState.players[socket.id];
         if (player && player.isHost && gameState.gamePhase === 'lobby') {
             startGame(socket);
-            startTurnTimer();
         }
     });
     socket.on('guess', (guessText) => {
@@ -223,7 +225,9 @@ io.on('connection', (socket) => {
         const guesser = players[socket.id];
         const giver = players[currentGiverId];
         if (!guesser || !giver || socket.id === giver.id || wordGuessedInTurn) return;
-        io.emit('guessBroadcast', { name: guesser.name, text: guessText });
+        
+        gameState.guessLog.push({ type: 'guess', name: guesser.name, text: guessText }); // << CORREÇÃO: Adiciona palpite ao registo
+        
         const normalizedGuess = guessText.trim().normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase();
         const normalizedTarget = currentCard.palavraAlvo.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase();
         if (normalizedGuess === normalizedTarget) {
@@ -231,7 +235,7 @@ io.on('connection', (socket) => {
             gameState.turnSuccesses.push({ card: currentCard, guesserId: guesser.id, giverId: giver.id });
             guesser.score += 4;
             giver.score += 1;
-            io.emit('cardSuccess', { guesserName: guesser.name, giverName: giver.name, word: currentCard.palavraAlvo });
+            gameState.guessLog.push({ type: 'success', guesserName: guesser.name, giverName: giver.name, word: currentCard.palavraAlvo });
             if (gameState.usedCards.size >= gameState.cards.length) {
                 startReviewPhase();
             } else {
@@ -241,7 +245,7 @@ io.on('connection', (socket) => {
     });
     socket.on('skipCard', () => {
         if (socket.id === gameState.currentGiverId && gameState.timeLeft > 0) {
-            io.emit('cardSkipped', { word: gameState.currentCard.palavraAlvo });
+            gameState.guessLog.push({ type: 'skipped', word: gameState.currentCard.palavraAlvo });
             pickNewCard();
         }
     });
@@ -249,7 +253,7 @@ io.on('connection', (socket) => {
         if (!gameState.currentGiverId || socket.id === gameState.currentGiverId || gameState.liveReports.has(socket.id)) return;
         gameState.liveReports.add(socket.id);
         if (gameState.liveReports.size >= Math.ceil((Object.keys(gameState.players).length) / 2)) {
-            io.emit('cardInvalidated', { word: gameState.currentCard.palavraAlvo });
+            gameState.guessLog.push({ type: 'invalid', word: gameState.currentCard.palavraAlvo });
             setTimeout(() => { if (gameState.timeLeft > 0) pickNewCard(); }, 2000);
         }
     });
@@ -277,7 +281,7 @@ io.on('connection', (socket) => {
             if (turnTimer) clearInterval(turnTimer);
             if (reviewTimer) clearTimeout(reviewTimer);
             gameState = getInitialGameState();
-            loadCards(); // Recarrega as cartas para um servidor vazio
+            loadCards();
             return;
         }
         if (wasHost) {
@@ -289,21 +293,15 @@ io.on('connection', (socket) => {
     });
 });
 
-// --- SINCROZINAÇÃO CONSTANTE DE ESTADO ---
 function getPublicGameState(playerId) {
     const { cards, usedCards, ...rest } = gameState;
     const publicState = { ...rest, players: Object.values(gameState.players) };
-    
-    // Esconde a carta secreta de todos, exceto do jogador da vez
     if (gameState.gamePhase === 'turn' && playerId !== gameState.currentGiverId) {
         publicState.currentCard = null;
     }
-    
-    // Ordena o pódio
     if (publicState.gamePhase === 'podium') {
         publicState.players.sort((a,b) => b.score - a.score);
     }
-
     return publicState;
 }
 
@@ -311,7 +309,7 @@ setInterval(() => {
     for (const playerId in gameState.players) {
         io.to(playerId).emit('syncState', getPublicGameState(playerId));
     }
-}, 1000); // Envia o estado a cada segundo
+}, 1000);
 
 server.listen(PORT, () => {
     console.log(`Servidor a rodar na porta ${PORT}`);
