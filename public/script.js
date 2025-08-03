@@ -36,26 +36,24 @@ document.addEventListener("DOMContentLoaded", () => {
     const reviewResultText = document.getElementById('review-result-text');
 
     let myPlayerId = null;
+    let lastReviewedCardWord = null; // << NOVO: Para controlar a animação do temporizador
     const REVIEW_DURATION_SECONDS = 10;
 
     // --- FUNÇÃO DE RENDERIZAÇÃO CENTRAL ---
     function renderGameState(state) {
         if (!myPlayerId) return;
 
-        // 1. Controla qual tela principal é exibida
         Object.values(screens).forEach(s => s.classList.remove('active'));
         if (state.gamePhase === 'lobby') screens.lobby.classList.add('active');
         else if (state.gamePhase === 'podium') screens.podium.classList.add('active');
         else screens.game.classList.add('active');
 
-        // 2. Atualiza o Lobby
         const me = state.players.find(p => p.id === myPlayerId);
         const myPlayerIsHost = me ? me.isHost : false;
         playerList.innerHTML = state.players.map(p => `<li><span>${p.name}</span>${p.isHost ? '<span class="host-tag">HOST</span>' : ''}</li>`).join('');
         startGameBtn.disabled = state.players.length < 3;
         startGameBtn.classList.toggle('hidden', !myPlayerIsHost);
 
-        // 3. Atualiza a tela de Jogo
         roundNumber.textContent = state.currentRound;
         timerDisplay.textContent = state.timeLeft;
         const giver = state.players.find(p => p.id === state.currentGiverId);
@@ -73,7 +71,28 @@ document.addEventListener("DOMContentLoaded", () => {
         }
         giverNameForGuesser.textContent = giver ? giver.name : '...';
 
-        // 4. Atualiza a fase de Avaliação
+        // << CORREÇÃO: Renderiza o registo de palpites a partir do estado
+        guessLog.innerHTML = (state.guessLog || []).map(log => {
+            let content = '';
+            switch(log.type) {
+                case 'success':
+                    content = `<strong class="guess-log-success">🎯 ${log.guesserName} acertou! (+4 pts)</strong><br><small>Dica de: ${log.giverName} (+1 pt)</small>`;
+                    break;
+                case 'invalid':
+                    content = `<strong class="guess-log-invalid">🚨 Palavra "${log.word}" foi invalidada!</strong>`;
+                    break;
+                case 'skipped':
+                    content = `<strong class="guess-log-skipped">⏩ A palavra "${log.word}" foi pulada!</strong>`;
+                    break;
+                default:
+                    content = `<strong>${log.name}:</strong> ${log.text}`;
+            }
+            return `<p>${content}</p>`;
+        }).join('');
+        if (guessLog.children.length > 0) {
+            guessLog.scrollTop = guessLog.scrollHeight;
+        }
+
         reviewOverlay.classList.toggle('hidden', state.gamePhase !== 'review');
         if (state.gamePhase === 'review') {
             if (state.currentReviewCard) {
@@ -85,9 +104,21 @@ document.addEventListener("DOMContentLoaded", () => {
                 reviewTargetWord.textContent = state.currentReviewCard.card.palavraAlvo;
                 reviewTabooList.innerHTML = state.currentReviewCard.card.tabus.map(t => `<li>${t}</li>`).join('');
                 reviewReportBtn.disabled = (myPlayerId === (reviewGiver ? reviewGiver.id : null));
-            } else if (state.reviewResultData) {
-                reviewCardArea.classList.add('hidden');
 
+                // << CORREÇÃO: Anima a barra de tempo da avaliação
+                const currentCardWord = state.currentReviewCard.card.palavraAlvo;
+                if (currentCardWord !== lastReviewedCardWord) {
+                    lastReviewedCardWord = currentCardWord;
+                    reviewTimerProgress.style.transition = 'none';
+                    reviewTimerProgress.style.width = '100%';
+                    setTimeout(() => {
+                        reviewTimerProgress.style.transition = `width ${REVIEW_DURATION_SECONDS}s linear`;
+                        reviewTimerProgress.style.width = '0%';
+                    }, 100);
+                }
+            } else if (state.reviewResultData) {
+                lastReviewedCardWord = null; // Reseta para a próxima avaliação
+                reviewCardArea.classList.add('hidden');
                 reviewResultArea.classList.remove('hidden');
                 if (state.reviewResultData.invalidated) {
                     reviewResultText.textContent = `Carta "${state.reviewResultData.word}" invalidada! (${state.reviewResultData.reports}/${state.reviewResultData.required} votos).`;
@@ -99,7 +130,6 @@ document.addEventListener("DOMContentLoaded", () => {
             }
         }
 
-        // 5. Atualiza o Pódio
         if (state.gamePhase === 'podium') {
             playAgainBtn.classList.toggle('hidden', !myPlayerIsHost);
             const medals = ['🥇', '🥈', '🥉'];
@@ -129,12 +159,5 @@ document.addEventListener("DOMContentLoaded", () => {
     socket.on('nameError', (message) => { alert(message); window.location.href = '/'; });
     socket.on('gameError', (message) => showNotification(message, 'error'));
 
-    // OUVINTE PRINCIPAL: Recebe o estado completo do jogo e renderiza a tela
     socket.on('syncState', renderGameState);
-
-    // OUVINTES PARA EVENTOS PONTUAIS (NOTIFICAÇÕES)
-    socket.on('guessBroadcast', (data) => addGuessToLog(data));
-    socket.on('cardSuccess', (data) => addGuessToLog({ ...data, type: 'success' }));
-    socket.on('cardInvalidated', (data) => addGuessToLog({ ...data, type: 'invalid' }));
-    socket.on('cardSkipped', (data) => addGuessToLog({ ...data, type: 'skipped' }));
 });
