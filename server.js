@@ -12,22 +12,18 @@ const PORT = process.env.PORT || 3000;
 
 app.use(express.static(path.join(__dirname, 'public')));
 
-// --- CONSTANTES DO JOGO ---
 const TURN_DURATION = 90;
-const REVIEW_DURATION = 10000; // 10 segundos
+const REVIEW_DURATION = 10000;
 
-// --- ESTADO INICIAL DO JOGO ---
 const getInitialGameState = () => ({
     players: {},
     playerOrder: [],
     cards: [],
     usedCards: new Set(),
-    gameStarted: false,
+    gamePhase: 'lobby', // lobby, turn, review, podium
     currentTurnIndex: 0,
     currentRound: 1,
     maxRounds: 3,
-    turnTimer: null,
-    reviewTimer: null,
     timeLeft: TURN_DURATION,
     currentCard: null,
     currentGiverId: null,
@@ -36,11 +32,10 @@ const getInitialGameState = () => ({
     reviewReports: new Set(),
     liveReports: new Set(),
     wordGuessedInTurn: false,
+    reviewResultData: null,
 });
 
 let gameState = getInitialGameState();
-
-// --- FUNÇÕES DE LÓGICA DO JOGO ---
 
 function loadCards() {
     try {
@@ -60,33 +55,17 @@ function shuffleArray(array) {
     }
 }
 
-// <<-- FUNÇÃO resetGame CORRIGIDA E MAIS ROBUSTA -->>
-function resetGame(ioInstance) {
-    console.log("Reiniciando o jogo...");
-    if (gameState.turnTimer) clearInterval(gameState.turnTimer);
-    if (gameState.reviewTimer) clearTimeout(gameState.reviewTimer);
-
-    // Zera a pontuação de todos os jogadores
-    Object.values(gameState.players).forEach(p => p.score = 0);
-
-    // Reseta as propriedades do jogo para o estado inicial
-    gameState.gameStarted = false;
-    gameState.playerOrder = [];
-    gameState.usedCards.clear();
-    gameState.currentTurnIndex = 0;
-    gameState.currentRound = 1;
-    gameState.timeLeft = TURN_DURATION;
-    gameState.currentCard = null;
-    gameState.currentGiverId = null;
-    gameState.turnSuccesses = [];
-    gameState.currentReviewCard = null;
-    gameState.reviewReports.clear();
-    gameState.liveReports.clear();
-    gameState.wordGuessedInTurn = false;
+function resetGame() {
+    console.log("A reiniciar o jogo...");
+    const players = Object.values(gameState.players);
+    const loadedCards = gameState.cards;
+    players.forEach(p => p.score = 0);
     
-    // Envia os eventos para todos os clientes voltarem ao lobby
-    ioInstance.emit('gameReset');
-    ioInstance.emit('lobbyUpdate', Object.values(gameState.players));
+    gameState = {
+        ...getInitialGameState(),
+        players: gameState.players,
+        cards: loadedCards,
+    };
 }
 
 function startGame(socket) {
@@ -94,12 +73,9 @@ function startGame(socket) {
         socket.emit('gameError', 'São necessários no mínimo 3 jogadores.');
         return;
     }
-
-    console.log("Iniciando o jogo!");
-    gameState.gameStarted = true;
+    console.log("A iniciar o jogo!");
     gameState.playerOrder = Object.keys(gameState.players);
     shuffleArray(gameState.playerOrder);
-
     startNewTurn();
 }
 
@@ -109,53 +85,32 @@ function moveToNextTurn() {
 }
 
 function startNewTurn() {
-    if (gameState.turnTimer) clearInterval(gameState.turnTimer);
-    
-    gameState.turnSuccesses = []; 
-
+    gameState.turnSuccesses = [];
     if (gameState.currentTurnIndex >= gameState.playerOrder.length) {
         gameState.currentTurnIndex = 0;
         gameState.currentRound++;
     }
-
     if (gameState.currentRound > gameState.maxRounds) {
         endGame();
         return;
     }
-
     if (gameState.usedCards.size >= gameState.cards.length) {
-        console.log("Não há mais cartas para o próximo turno. Fim de jogo.");
         io.emit('gameError', 'Todas as cartas do baralho foram usadas!');
         endGame();
         return;
     }
-
     gameState.currentGiverId = gameState.playerOrder[gameState.currentTurnIndex];
     const giver = gameState.players[gameState.currentGiverId];
-    
     if (!giver) {
-        console.log(`Jogador da vez ${gameState.currentGiverId} desconectou. Pulando.`);
         moveToNextTurn();
         return;
     }
-
     console.log(`Novo turno: ${giver.name} (Rodada ${gameState.currentRound})`);
-    
     pickNewCard();
-    
     gameState.timeLeft = TURN_DURATION;
     gameState.liveReports.clear();
     gameState.wordGuessedInTurn = false;
-
-    io.emit('newTurn', {
-        giver: { id: giver.id, name: giver.name },
-        round: gameState.currentRound,
-        timeLeft: gameState.timeLeft,
-    });
-    
-    io.to(giver.id).emit('cardUpdate', gameState.currentCard);
-
-    gameState.turnTimer = setInterval(updateTimer, 1000);
+    gameState.gamePhase = 'turn';
 }
 
 function pickNewCard() {
@@ -167,282 +122,198 @@ function pickNewCard() {
     do {
         newCardIndex = Math.floor(Math.random() * gameState.cards.length);
     } while (gameState.usedCards.has(newCardIndex));
-    
     gameState.usedCards.add(newCardIndex);
     gameState.currentCard = gameState.cards[newCardIndex];
     gameState.wordGuessedInTurn = false;
     gameState.liveReports.clear();
-    
     io.emit('newCardInPlay');
-    if(gameState.currentGiverId) {
-        io.to(gameState.currentGiverId).emit('cardUpdate', gameState.currentCard);
-    }
 }
 
-function updateTimer() {
-    gameState.timeLeft--;
-    io.emit('timerUpdate', gameState.timeLeft);
-
-    if (gameState.timeLeft <= 0) {
-        clearInterval(gameState.turnTimer);
-        console.log(`Tempo esgotado para ${gameState.players[gameState.currentGiverId]?.name}.`);
-        startReviewPhase();
-    }
+let turnTimer = null;
+function startTurnTimer() {
+    if (turnTimer) clearInterval(turnTimer);
+    turnTimer = setInterval(() => {
+        if (gameState.gamePhase === 'turn') {
+            gameState.timeLeft--;
+            if (gameState.timeLeft <= 0) {
+                startReviewPhase();
+            }
+        } else {
+            clearInterval(turnTimer);
+        }
+    }, 1000);
 }
 
 function startReviewPhase() {
-    console.log("Iniciando fase de avaliação...");
+    console.log("A iniciar fase de avaliação...");
+    gameState.gamePhase = 'review';
     if (gameState.turnSuccesses.length === 0) {
-        console.log("Nenhuma carta para avaliar. Pulando para o próximo turno.");
         moveToNextTurn();
         return;
     }
-    
-    io.emit('startReview', { totalCards: gameState.turnSuccesses.length });
-    setTimeout(reviewNextCard, 2000);
+    reviewNextCard();
 }
 
+let reviewTimer = null;
 function reviewNextCard() {
-    if (gameState.reviewTimer) clearTimeout(gameState.reviewTimer);
-
+    if (reviewTimer) clearTimeout(reviewTimer);
     if (gameState.turnSuccesses.length === 0) {
         endReviewPhase();
         return;
     }
-
     gameState.currentReviewCard = gameState.turnSuccesses.shift();
     gameState.reviewReports.clear();
-
-    console.log(`Avaliando a carta: ${gameState.currentReviewCard.card.palavraAlvo}`);
-
-    io.emit('showReviewCard', {
-        card: gameState.currentReviewCard.card,
-        guesserName: gameState.players[gameState.currentReviewCard.guesserId]?.name || '?'
-    });
-
-    gameState.reviewTimer = setTimeout(() => {
-        processReviewVotes();
-    }, REVIEW_DURATION);
+    gameState.reviewResultData = null;
+    reviewTimer = setTimeout(processReviewVotes, REVIEW_DURATION);
 }
 
 function processReviewVotes() {
-    const giverId = gameState.currentReviewCard.giverId;
-    const giver = gameState.players[giverId];
-    
-    const totalVoters = Math.max(1, Object.keys(gameState.players).length - 1);
+    const { currentReviewCard, players, reviewReports } = gameState;
+    const giver = players[currentReviewCard.giverId];
+    const totalVoters = Math.max(1, Object.keys(players).length - 1);
     const requiredReports = Math.ceil((totalVoters + 1) / 2);
-
     let invalidated = false;
-    if (giver && gameState.reviewReports.size >= requiredReports) {
-        console.log(`Carta "${gameState.currentReviewCard.card.palavraAlvo}" invalidada na avaliação.`);
+    if (giver && reviewReports.size >= requiredReports) {
         giver.score = Math.max(0, giver.score - 1);
         invalidated = true;
-    } else {
-        console.log(`Carta "${gameState.currentReviewCard.card.palavraAlvo}" validada.`);
     }
-
-    io.emit('reviewResult', {
-        word: gameState.currentReviewCard.card.palavraAlvo,
-        invalidated: invalidated,
-        reports: gameState.reviewReports.size,
+    gameState.reviewResultData = {
+        word: currentReviewCard.card.palavraAlvo,
+        invalidated,
+        reports: reviewReports.size,
         required: requiredReports
-    });
-    
-    if (invalidated) {
-        io.emit('scoreUpdate', Object.values(gameState.players));
-    }
-
+    };
     setTimeout(reviewNextCard, 2500);
 }
 
 function endReviewPhase() {
-    console.log("Fase de avaliação finalizada.");
-    io.emit('endReview');
     gameState.currentReviewCard = null;
-    setTimeout(moveToNextTurn, 2000);
+    gameState.reviewResultData = null;
+    moveToNextTurn();
 }
-
 
 function endGame() {
     console.log("Fim de jogo!");
-    if (gameState.turnTimer) clearInterval(gameState.turnTimer);
-    if (gameState.reviewTimer) clearTimeout(gameState.reviewTimer);
-    
-    const scores = Object.values(gameState.players)
-        .sort((a, b) => b.score - a.score)
-        .map(p => ({ name: p.name, score: p.score }));
-
-    io.emit('gameOver', scores);
+    gameState.gamePhase = 'podium';
 }
-
 
 io.on('connection', (socket) => {
     console.log(`Novo jogador conectado: ${socket.id}`);
-
     socket.on('joinLobby', (playerName) => {
         if (Object.values(gameState.players).some(p => p.name.toLowerCase() === playerName.toLowerCase())) {
             socket.emit('nameError', 'Este nome já está em uso.');
             return;
         }
-        if (gameState.gameStarted) {
+        if (gameState.gamePhase !== 'lobby') {
             socket.emit('gameError', 'O jogo já começou. Aguarde a próxima partida.');
             return;
         }
-
-        gameState.players[socket.id] = {
-            id: socket.id,
-            name: playerName,
-            score: 0,
-            isHost: Object.keys(gameState.players).length === 0,
-        };
-        console.log(`Jogador ${playerName} (${socket.id}) entrou.`);
-
+        gameState.players[socket.id] = { id: socket.id, name: playerName, score: 0, isHost: Object.keys(gameState.players).length === 0 };
         socket.emit('welcome', { id: socket.id });
-        io.emit('lobbyUpdate', Object.values(gameState.players));
     });
-    
     socket.on('startGame', () => {
         const player = gameState.players[socket.id];
-        if (player && player.isHost && !gameState.gameStarted) {
+        if (player && player.isHost && gameState.gamePhase === 'lobby') {
             startGame(socket);
+            startTurnTimer();
         }
     });
-
     socket.on('guess', (guessText) => {
-        const guesser = gameState.players[socket.id];
-        const giver = gameState.players[gameState.currentGiverId];
-
-        if (!guesser || !giver || socket.id === giver.id || gameState.wordGuessedInTurn) return;
-
+        const { players, currentGiverId, wordGuessedInTurn, currentCard } = gameState;
+        const guesser = players[socket.id];
+        const giver = players[currentGiverId];
+        if (!guesser || !giver || socket.id === giver.id || wordGuessedInTurn) return;
         io.emit('guessBroadcast', { name: guesser.name, text: guessText });
-        
         const normalizedGuess = guessText.trim().normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase();
-        const normalizedTarget = gameState.currentCard.palavraAlvo.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase();
-
+        const normalizedTarget = currentCard.palavraAlvo.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase();
         if (normalizedGuess === normalizedTarget) {
-            console.log(`${guesser.name} acertou: ${gameState.currentCard.palavraAlvo}`);
             gameState.wordGuessedInTurn = true;
-
-            gameState.turnSuccesses.push({
-                card: gameState.currentCard,
-                guesserId: guesser.id,
-                giverId: giver.id
-            });
-
+            gameState.turnSuccesses.push({ card: currentCard, guesserId: guesser.id, giverId: giver.id });
             guesser.score += 4;
             giver.score += 1;
-
-            io.emit('cardSuccess', { 
-                guesserName: guesser.name, 
-                giverName: giver.name,
-                word: gameState.currentCard.palavraAlvo 
-            });
-            io.emit('scoreUpdate', Object.values(gameState.players));
-            
+            io.emit('cardSuccess', { guesserName: guesser.name, giverName: giver.name, word: currentCard.palavraAlvo });
             if (gameState.usedCards.size >= gameState.cards.length) {
-                console.log("Última carta do baralho foi usada. Finalizando turno.");
-                if (gameState.turnTimer) clearInterval(gameState.turnTimer);
                 startReviewPhase();
             } else {
-                setTimeout(() => {
-                    if(gameState.timeLeft > 0) pickNewCard();
-                }, 2000);
+                setTimeout(() => { if (gameState.timeLeft > 0) pickNewCard(); }, 2000);
             }
         }
     });
-    
     socket.on('skipCard', () => {
         if (socket.id === gameState.currentGiverId && gameState.timeLeft > 0) {
-            console.log(`Jogador ${gameState.players[socket.id].name} pulou a carta.`);
             io.emit('cardSkipped', { word: gameState.currentCard.palavraAlvo });
             pickNewCard();
         }
     });
-
     socket.on('reportLive', () => {
         if (!gameState.currentGiverId || socket.id === gameState.currentGiverId || gameState.liveReports.has(socket.id)) return;
-        
         gameState.liveReports.add(socket.id);
-        const totalGuessers = Math.max(1, Object.keys(gameState.players).length - 1);
-        const requiredReports = Math.ceil((totalGuessers + 1) / 2);
-
-        io.emit('reportCount', {
-            count: gameState.liveReports.size,
-            required: requiredReports
-        });
-
-        if (gameState.liveReports.size >= requiredReports) {
-            console.log(`Carta "${gameState.currentCard.palavraAlvo}" invalidada.`);
+        if (gameState.liveReports.size >= Math.ceil((Object.keys(gameState.players).length) / 2)) {
             io.emit('cardInvalidated', { word: gameState.currentCard.palavraAlvo });
-            
-            setTimeout(() => {
-                if (gameState.timeLeft > 0) pickNewCard();
-            }, 2000);
+            setTimeout(() => { if (gameState.timeLeft > 0) pickNewCard(); }, 2000);
         }
     });
-
     socket.on('reportReview', () => {
         const player = gameState.players[socket.id];
         if (player && gameState.currentReviewCard && player.id !== gameState.currentReviewCard.giverId) {
             gameState.reviewReports.add(player.id);
-            console.log(`${player.name} denunciou a carta ${gameState.currentReviewCard.card.palavraAlvo}`);
         }
     });
-    
     socket.on('playAgain', () => {
         const player = gameState.players[socket.id];
-        if (player && player.isHost) {
-            resetGame(io);
+        if (player && player.isHost && gameState.gamePhase === 'podium') {
+            resetGame();
         }
     });
-
     socket.on('disconnect', () => {
         const disconnectedPlayer = gameState.players[socket.id];
         if (!disconnectedPlayer) return;
-
         console.log(`Jogador ${disconnectedPlayer.name} desconectou.`);
         const wasHost = disconnectedPlayer.isHost;
-        const wasGiver = socket.id === gameState.currentGiverId;
         delete gameState.players[socket.id];
-
         const remainingPlayers = Object.values(gameState.players);
-        
         if (remainingPlayers.length === 0) {
-            console.log("Todos os jogadores saíram. Resetando o estado do jogo.");
-            if (gameState.turnTimer) clearInterval(gameState.turnTimer);
-            if (gameState.reviewTimer) clearTimeout(gameState.reviewTimer);
-            const loadedCards = gameState.cards;
+            console.log("Todos os jogadores saíram.");
+            if (turnTimer) clearInterval(turnTimer);
+            if (reviewTimer) clearTimeout(reviewTimer);
             gameState = getInitialGameState();
-            gameState.cards = loadedCards;
+            loadCards(); // Recarrega as cartas para um servidor vazio
             return;
         }
-
-        if (wasHost && remainingPlayers.length > 0) {
-            const newHost = remainingPlayers[0];
-            if (newHost) {
-                newHost.isHost = true;
-                console.log(`Novo host: ${newHost.name}`);
-            }
+        if (wasHost) {
+            remainingPlayers[0].isHost = true;
         }
-
-        if (gameState.gameStarted) {
-            if (wasGiver) {
-                if (gameState.turnTimer) clearInterval(gameState.turnTimer);
-                console.log("O jogador da vez desconectou. Indo para a avaliação.");
-                startReviewPhase();
-            } else if (remainingPlayers.length < 3) {
-                console.log("Jogadores insuficientes para continuar. Voltando para o lobby.");
-                resetGame(io);
-            } else {
-                io.emit('lobbyUpdate', remainingPlayers);
-            }
-        } else {
-            io.emit('lobbyUpdate', remainingPlayers);
+        if (gameState.gamePhase !== 'lobby' && remainingPlayers.length < 3) {
+            resetGame();
         }
     });
 });
 
+// --- SINCROZINAÇÃO CONSTANTE DE ESTADO ---
+function getPublicGameState(playerId) {
+    const { cards, usedCards, ...rest } = gameState;
+    const publicState = { ...rest, players: Object.values(gameState.players) };
+    
+    // Esconde a carta secreta de todos, exceto do jogador da vez
+    if (gameState.gamePhase === 'turn' && playerId !== gameState.currentGiverId) {
+        publicState.currentCard = null;
+    }
+    
+    // Ordena o pódio
+    if (publicState.gamePhase === 'podium') {
+        publicState.players.sort((a,b) => b.score - a.score);
+    }
+
+    return publicState;
+}
+
+setInterval(() => {
+    for (const playerId in gameState.players) {
+        io.to(playerId).emit('syncState', getPublicGameState(playerId));
+    }
+}, 1000); // Envia o estado a cada segundo
+
 server.listen(PORT, () => {
-    console.log(`Servidor rodando na porta ${PORT}`);
+    console.log(`Servidor a rodar na porta ${PORT}`);
     loadCards();
 });
