@@ -36,12 +36,28 @@ document.addEventListener("DOMContentLoaded", () => {
     const reviewResultText = document.getElementById('review-result-text');
 
     let myPlayerId = null;
-    let lastReviewedCardWord = null; // << NOVO: Para controlar a animação do temporizador
+    let lastReviewedCardWord = null;
+    let lastGiverId = null; // Para detetar o início de um novo turno
+    let lastCardResolutionCount = 0; // Para detetar novas cartas dentro de um turno
     const REVIEW_DURATION_SECONDS = 10;
 
     // --- FUNÇÃO DE RENDERIZAÇÃO CENTRAL ---
     function renderGameState(state) {
         if (!myPlayerId) return;
+
+        // Detetar início de um novo turno para reativar o botão de denúncia
+        if (state.currentGiverId !== lastGiverId) {
+            lastGiverId = state.currentGiverId;
+            reportBtn.disabled = false;
+            lastCardResolutionCount = 0; // Reinicia o contador para o novo turno
+        }
+
+        // Detetar uma nova carta dentro do mesmo turno (após acerto, pulo ou anulação)
+        const currentCardResolutionCount = (state.guessLog || []).filter(log => ['success', 'invalid', 'skipped'].includes(log.type)).length;
+        if (currentCardResolutionCount > lastCardResolutionCount) {
+            lastCardResolutionCount = currentCardResolutionCount;
+            reportBtn.disabled = false; // Reativa o botão para a nova carta
+        }
 
         Object.values(screens).forEach(s => s.classList.remove('active'));
         if (state.gamePhase === 'lobby') screens.lobby.classList.add('active');
@@ -71,7 +87,6 @@ document.addEventListener("DOMContentLoaded", () => {
         }
         giverNameForGuesser.textContent = giver ? giver.name : '...';
 
-        // << CORREÇÃO: Renderiza o registo de palpites a partir do estado
         guessLog.innerHTML = (state.guessLog || []).map(log => {
             let content = '';
             switch(log.type) {
@@ -103,12 +118,12 @@ document.addEventListener("DOMContentLoaded", () => {
                 reviewGuesserName.textContent = reviewGuesser ? reviewGuesser.name : '?';
                 reviewTargetWord.textContent = state.currentReviewCard.card.palavraAlvo;
                 reviewTabooList.innerHTML = state.currentReviewCard.card.tabus.map(t => `<li>${t}</li>`).join('');
-                reviewReportBtn.disabled = (myPlayerId === (reviewGiver ? reviewGiver.id : null));
-
-                // << CORREÇÃO: Anima a barra de tempo da avaliação
+                
                 const currentCardWord = state.currentReviewCard.card.palavraAlvo;
                 if (currentCardWord !== lastReviewedCardWord) {
                     lastReviewedCardWord = currentCardWord;
+                    // Reativa o botão de denúncia da avaliação, exceto para o giver
+                    reviewReportBtn.disabled = (myPlayerId === (reviewGiver ? reviewGiver.id : null));
                     reviewTimerProgress.style.transition = 'none';
                     reviewTimerProgress.style.width = '100%';
                     setTimeout(() => {
@@ -117,7 +132,7 @@ document.addEventListener("DOMContentLoaded", () => {
                     }, 100);
                 }
             } else if (state.reviewResultData) {
-                lastReviewedCardWord = null; // Reseta para a próxima avaliação
+                lastReviewedCardWord = null;
                 reviewCardArea.classList.add('hidden');
                 reviewResultArea.classList.remove('hidden');
                 if (state.reviewResultData.invalidated) {
